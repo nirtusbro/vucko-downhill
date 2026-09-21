@@ -1,0 +1,31 @@
+{
+  "id": "/",
+  "name": "Ljubica’s birthday — Vučko",
+  "short_name": "Vučko",
+  "description": "Happy birthday, Ljubica! Ski with Vučko and collect lovely table lamps.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#b8dded",
+  "theme_color": "#b8dded",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

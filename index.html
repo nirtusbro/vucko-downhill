@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#b8dded" />
+    <meta
+      name="description"
+      content="Happy birthday, Ljubica! A snowy adventure with Vučko, lovely lamps, and a mountain full of little surprises."
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <title>Happy birthday, Ljubica! — Vučko</title>
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+  </head>
+  <body>
+    <canvas
+      id="game"
+      aria-label="Vučko skiing down a snowy slalom course"
+    ></canvas>
+    <main id="ui">
+      <section id="menu" class="screen">
+        <div class="brand">
+          <span class="brand-snow">✳</span><span>A birthday adventure</span>
+        </div>
+        <div class="title">
+          <h1>Vučko<span>Downhill days</span></h1>
+          <p class="birthday-note">Happy birthday, Ljubica!</p>
+        </div>
+        <div class="menu-bottom">
+          <div class="course-note">
+            <span class="mountain-mark">△</span> Bjelašnica
+            <span class="dot"></span> 20 gates <span class="dot"></span> 20
+            lovely lamps
+          </div>
+          <fieldset
+            class="difficulty-selector"
+            aria-describedby="difficulty-detail"
+          >
+            <legend class="sr-only">Difficulty</legend>
+            <label
+              ><input type="radio" name="difficulty" value="easy" /><span
+                >Easy</span
+              ></label
+            >
+            <label
+              ><input
+                type="radio"
+                name="difficulty"
+                value="classic"
+                checked
+              /><span>Classic</span></label
+            >
+            <label
+              ><input type="radio" name="difficulty" value="expert" /><span
+                >Expert</span
+              ></label
+            >
+          </fieldset>
+          <div class="difficulty-info" aria-live="polite">
+            <span id="difficulty-detail">The original downhill feel</span
+            ><span id="difficulty-best">Best 0</span>
+          </div>
+          <button id="play" class="primary">Let’s ski <span>↗</span></button
+          ><button id="how" class="text-button">How to play</button>
+          <p class="desktop-hint">Drag to carve <span>·</span> or use ← →</p>
+        </div>
+        <div class="menu-footer">
+          <span>A mountain of wishes, just for you</span
+          ><span>Est. 1984 <b>✳</b></span>
+        </div>
+      </section>
+      <section id="hud" hidden aria-label="Race information">
+        <div class="hud-top">
+          <div class="stat">
+            <span>Time</span><strong id="time">00:00.0</strong>
+          </div>
+          <div class="progress">
+            <div class="progress-label">
+              <span id="gate-count">0 / 20</span><span>⚑</span>
+            </div>
+            <div class="progress-track"><i id="progress-fill"></i></div>
+            <span id="run-difficulty" class="run-difficulty">Classic</span>
+          </div>
+          <div class="stat score">
+            <span>Score</span><strong id="score">0</strong>
+          </div>
+        </div>
+        <button
+          id="pause"
+          class="icon-button pause-button"
+          aria-label="Pause game"
+        >
+          Ⅱ
+        </button>
+        <div id="feedback" aria-live="polite"></div>
+        <div id="combo"></div>
+        <div id="tutorial">
+          <span class="drag-indicator">← <b>☝</b> →</span>
+          <p>Drag left and right to carve</p>
+        </div>
+        <div class="run-footer">
+          <span class="lamp-counter" aria-label="Lamps collected"
+            ><svg viewBox="0 0 28 30" aria-hidden="true">
+              <path d="M7 3h14l5 13H2z" />
+              <path d="M14 16v10M8 27h12" /></svg
+            ><strong id="lamp-count">0 / 20</strong><small>lamps</small></span
+          ><span id="speed">0 <small>km/h</small></span>
+        </div>
+        <div id="steering" hidden><i></i><b></b></div>
+      </section>
+      <section id="pause-screen" class="overlay" hidden>
+        <div class="dialog">
+          <span class="dialog-symbol">Ⅱ</span>
+          <h2>Take a breath.</h2>
+          <p>The mountain will wait.</p>
+          <button id="resume" class="primary">Keep skiing <span>↗</span></button
+          ><button id="restart" class="secondary">Start again</button
+          ><button id="quit" class="text-button">Main menu</button>
+        </div>
+      </section>
+      <section id="how-screen" class="overlay" hidden>
+        <div class="dialog">
+          <span class="dialog-symbol">↔</span>
+          <h2>Find your flow.</h2>
+          <p>
+            Touch the lower part of the screen and drag gently left or right to
+            carve. Release to point downhill.
+          </p>
+          <div class="how-gates">
+            <i></i
+            ><span
+              >Pass between the matching flags.<br />Link gates for up to a ×4
+              combo.</span
+            ><i></i>
+          </div>
+          <p class="lamp-help">
+            Take a little detour for lamps between gates.<br />Each little light
+            is worth +50 points.
+          </p>
+          <p class="how-small">
+            Miss a gate? Keep going. Take a tumble? Vučko gets right back up.<br /><br />On
+            a keyboard, use A / D or ← / →.<br />Press Esc or P to pause.
+          </p>
+          <button id="how-close" class="primary">Got it <span>✓</span></button>
+        </div>
+      </section>
+      <section id="finish-screen" class="overlay finish-overlay" hidden>
+        <div class="dialog">
+          <span class="finish-badge">✳</span>
+          <p id="finish-kicker">
+            A little more light for your birthday, Ljubica.
+          </p>
+          <h2>Beautiful run.</h2>
+          <span id="result-difficulty" class="result-difficulty">Classic</span>
+          <div id="new-best" hidden>New personal best</div>
+          <div class="results">
+            <div><span>Time</span><strong id="result-time"></strong></div>
+            <div><span>Score</span><strong id="result-score"></strong></div>
+            <div><span>Gates hit</span><strong id="result-gates"></strong></div>
+            <div>
+              <span id="result-best-label">Classic best</span
+              ><strong id="result-best"></strong>
+            </div>
+          </div>
+          <div class="birthday-collection">
+            <svg viewBox="0 0 28 30" aria-hidden="true">
+              <path d="M7 3h14l5 13H2z" />
+              <path d="M14 16v10M8 27h12" /></svg
+            ><strong id="result-lamps">0 / 20 lovely lamps</strong
+            ><span>A little collection, just for you.</span>
+          </div>
+          <button id="again" class="primary">Play again <span>↗</span></button
+          ><button id="finish-menu" class="text-button">Main menu</button>
+        </div>
+      </section>
+      <button
+        id="sound"
+        class="icon-button sound-button"
+        aria-label="Mute sound"
+        title="Mute sound"
+      ></button>
+      <div id="error" class="overlay" hidden>
+        <div class="dialog">
+          <h2>A little snow delay.</h2>
+          <p id="error-message"></p>
+          <button class="primary" onclick="location.reload()">Try again</button>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
