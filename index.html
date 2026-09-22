@@ -35,6 +35,106 @@
           <h1>Vučko<span>Downhill days</span></h1>
           <p class="birthday-note">Happy birthday, Ljubica!</p>
         </div>
+        <aside class="lamp-shelf" aria-labelledby="shelf-title">
+          <div class="shelf-heading">
+            <h2 id="shelf-title">Ljubica’s lamp shelf</h2>
+            <span id="collection-total">Bring home a little light</span>
+          </div>
+          <div class="shelf-lamps">
+            <div
+              id="shelf-lamp-0"
+              class="shelf-lamp"
+              role="img"
+              aria-label="Rose mushroom: 0 collected"
+            >
+              <svg viewBox="0 0 80 80" aria-hidden="true">
+                <ellipse class="lamp-halo" cx="40" cy="53" rx="28" ry="22" />
+                <path fill="#c69862" d="M27 71q13-7 26 0v3H27z" />
+                <path fill="#e4a29e" d="M35 33h10l4 35H31z" />
+                <path fill="#f8e7b8" d="M10 34h60v5H10z" />
+                <path fill="#d98a91" d="M8 34C8 0 72 0 72 34z" />
+                <path
+                  fill="none"
+                  stroke="#efbabb"
+                  stroke-width="3"
+                  d="M18 26Q22 13 34 12"
+                /></svg
+              ><strong>—</strong><span>Rose</span>
+            </div>
+            <div
+              id="shelf-lamp-1"
+              class="shelf-lamp"
+              role="img"
+              aria-label="Lavender pleats: 0 collected"
+            >
+              <svg viewBox="0 0 80 80" aria-hidden="true">
+                <ellipse class="lamp-halo" cx="40" cy="53" rx="28" ry="22" />
+                <path stroke="#bb9254" stroke-width="4" d="M40 37v32" />
+                <ellipse fill="#d5b575" cx="40" cy="72" rx="17" ry="3" />
+                <path fill="#ac99c9" d="M25 9h30l12 32H13z" />
+                <path
+                  stroke="#d7c6e9"
+                  stroke-width="2"
+                  d="m28 10-8 30m14-30-3 30m9-30v30m6-30 3 30m3-30 8 30"
+                />
+                <path stroke="#c5a568" stroke-width="3" d="M13 42h54" />
+                <circle fill="#f5e7c7" cx="40" cy="57" r="6" /></svg
+              ><strong>—</strong><span>Pleats</span>
+            </div>
+            <div
+              id="shelf-lamp-2"
+              class="shelf-lamp"
+              role="img"
+              aria-label="Emerald banker: 0 collected"
+            >
+              <svg viewBox="0 0 80 80" aria-hidden="true">
+                <ellipse class="lamp-halo" cx="40" cy="53" rx="28" ry="22" />
+                <ellipse fill="#c7a36c" cx="40" cy="71" rx="20" ry="4" />
+                <ellipse fill="#6b9f8e" cx="40" cy="68" rx="16" ry="3" />
+                <path
+                  fill="none"
+                  stroke="#c7a36c"
+                  stroke-width="4"
+                  d="M40 66V28"
+                />
+                <path
+                  fill="#f5e6b5"
+                  stroke="#bf9b5d"
+                  stroke-width="2"
+                  d="M9 26h62v7H9z"
+                />
+                <path fill="#6aa48e" d="M8 27C8 5 72 5 72 27z" />
+                <path
+                  fill="none"
+                  stroke="#a8d0b5"
+                  stroke-width="3"
+                  d="M17 21q10-11 30-7"
+                />
+                <path stroke="#bfa16b" d="M62 33v22" />
+                <circle fill="#c7a36c" cx="62" cy="57" r="2" /></svg
+              ><strong>—</strong><span>Banker</span>
+            </div>
+            <div
+              id="shelf-lamp-3"
+              class="shelf-lamp"
+              role="img"
+              aria-label="Blue porcelain: 0 collected"
+            >
+              <svg viewBox="0 0 80 80" aria-hidden="true">
+                <ellipse class="lamp-halo" cx="40" cy="53" rx="28" ry="22" />
+                <ellipse fill="#c5a366" cx="40" cy="72" rx="17" ry="3" />
+                <path
+                  fill="#8cb2c9"
+                  d="M35 36h10c-7 13 10 12 9 25 0 12-28 12-28 0-1-13 16-12 9-25"
+                />
+                <path fill="#e1edf1" d="M35 52q-9 8 0 14zm10 0q9 8 0 14z" />
+                <path fill="#f4e9d2" stroke="#c5ad84" d="M25 8h30l11 30H14z" />
+                <path fill="#91b9cf" d="M13 38h54v3H13z" />
+                <circle fill="#c5a366" cx="40" cy="6" r="2" /></svg
+              ><strong>—</strong><span>Porcelain</span>
+            </div>
+          </div>
+        </aside>
         <div class="menu-bottom">
           <div class="course-note">
             <span class="mountain-mark">△</span> Bjelašnica
@@ -66,7 +166,7 @@
             >
           </fieldset>
           <div class="difficulty-info" aria-live="polite">
-            <span id="difficulty-detail">The original downhill feel</span
+            <span id="difficulty-detail">Fast turns, find your rhythm</span
             ><span id="difficulty-best">Best 0</span>
           </div>
           <button id="play" class="primary">Let’s ski <span>↗</span></button
@@ -113,6 +213,12 @@
               <path d="M7 3h14l5 13H2z" />
               <path d="M14 16v10M8 27h12" /></svg
             ><strong id="lamp-count">0 / 20</strong><small>lamps</small></span
+          ><span class="present-counter" aria-label="Presents collected"
+            ><svg viewBox="0 0 28 30" aria-hidden="true">
+              <path
+                d="M4 12h20v15H4zM2 8h24v5H2zM14 8v19M14 8C3 9 5-2 11 4l3 4c11 1 9-10 3-4z"
+              /></svg
+            ><strong id="present-count">0</strong><small>gifts</small></span
           ><span id="speed">0 <small>km/h</small></span>
         </div>
         <div id="steering" hidden><i></i><b></b></div>
@@ -144,7 +250,12 @@
           </div>
           <p class="lamp-help">
             Take a little detour for lamps between gates.<br />Each little light
-            is worth +50 points.
+            is worth +50 points. Collected lamps also light up your home-screen
+            shelf, across every run.
+          </p>
+          <p class="lamp-help">
+            Watch for presents falling from the sky!<br />Follow the gold rings
+            and collect them after they land for +200 points.
           </p>
           <p class="how-small">
             Miss a gate? Keep going. Take a tumble? Vučko gets right back up.<br /><br />On
@@ -176,7 +287,7 @@
               <path d="M7 3h14l5 13H2z" />
               <path d="M14 16v10M8 27h12" /></svg
             ><strong id="result-lamps">0 / 20 lovely lamps</strong
-            ><span>A little collection, just for you.</span>
+            ><span id="result-presents">0 birthday presents · +0 points</span>
           </div>
           <button id="again" class="primary">Play again <span>↗</span></button
           ><button id="finish-menu" class="text-button">Main menu</button>

@@ -105,7 +105,7 @@ describe("skiing", () => {
     expect(s.finished).toBe(false);
   });
   it("allows every gate to be reached by steering within the normal input range", () => {
-    const s = createRun();
+    const s = createRun("classic", 42);
     const targets = [...GATES, ...LAMPS].sort((a, b) => a.z - b.z);
     let nextTarget = 0;
     for (let tick = 0; tick < 120 * 180 && !s.finished; tick++) {
@@ -121,20 +121,21 @@ describe("skiing", () => {
     expect(s.finished).toBe(true);
     expect(s.hits).toBe(20);
     expect(s.lamps).toBe(20);
-    expect(s.score).toBe(8400);
-    expect(s.time).toBeGreaterThan(60);
-    expect(s.time).toBeLessThan(120);
+    expect(s.score).toBe(8400 + s.presents.collected * 200);
+    expect(s.time).toBeGreaterThan(32);
+    expect(s.time).toBeLessThan(45);
   });
   it("does not punish missed gates with a forced restart", () => {
     const s = advance(createRun(), 110);
     expect(s.finished).toBe(true);
     expect(s.hits).toBeLessThan(20);
-    expect(s.time).toBeGreaterThan(60);
+    expect(s.time).toBeGreaterThan(30);
+    expect(s.time).toBeLessThan(40);
   });
   it("keeps collision feedback when a tumble also crosses a missed gate", () => {
     const s = createRun();
-    s.x = -17.5;
-    s.z = 584.9;
+    s.x = OBSTACLES.find((o) => o.z === GATES[8].z)!.x;
+    s.z = GATES[8].z - 0.1;
     s.nextGate = 8;
     s.speed = 18;
     stepRun(s, 0, 1 / 60);

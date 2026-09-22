@@ -105,6 +105,9 @@ export class SkiAudio {
       note(1319, 0.06, 0.3, 0.07);
       note(1568, 0.13, 0.4, 0.055);
     }
+    if (event === "present") {
+      [784, 1047, 1319, 1568].forEach((f, i) => note(f, i * 0.055, 0.38, 0.08));
+    }
     if (event === "miss") note(220, 0, 0.15, 0.05, "triangle");
     if (event === "crash") {
       note(95, 0, 0.25, 0.17, "triangle");

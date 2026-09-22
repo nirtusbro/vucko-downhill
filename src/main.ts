@@ -5,11 +5,30 @@ import { SkiScene } from "./scene";
 import { SkiAudio } from "./audio";
 import { readBest, readValue, writeValue } from "./storage";
 import { DIFFICULTIES, parseDifficulty } from "./difficulty";
+import { PRESENT_POINTS } from "./presents";
+import { LampCollection, LAMP_NAMES } from "./collection";
 
 const el = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
 const canvas = el<HTMLCanvasElement>("game");
 const input = new SkiInput(canvas);
+const collection = new LampCollection();
+function refreshCollection() {
+  const total = collection.counts.reduce((sum, count) => sum + count, 0);
+  el("collection-total").textContent = total
+    ? `${total.toLocaleString()} collected`
+    : "Bring home a little light";
+  collection.counts.forEach((count, style) => {
+    const slot = el(`shelf-lamp-${style}`);
+    slot.classList.toggle("owned", count > 0);
+    slot.setAttribute("aria-label", `${LAMP_NAMES[style]}: ${count} collected`);
+    slot.setAttribute("title", `${LAMP_NAMES[style]} · ${count} collected`);
+    slot.querySelector("strong")!.textContent = count
+      ? `×${count.toLocaleString()}`
+      : "—";
+  });
+}
+refreshCollection();
 let selectedDifficulty = parseDifficulty(readValue("difficulty", "classic"));
 let run = createRun(selectedDifficulty);
 let mode = "menu";
@@ -94,6 +113,7 @@ function updateHud() {
   timeEl.textContent = formatTime(run.time);
   scoreEl.textContent = run.score.toLocaleString();
   lampsEl.textContent = `${run.lamps} / 20`;
+  el("present-count").textContent = String(run.presents.collected);
   gatesEl.textContent = `${run.hits} / ${GATES.length}`;
   progressEl.style.width = `${(run.z / FINISH_Z) * 100}%`;
   speedEl.innerHTML = `${Math.round(run.speed * 3.6)} <small>km/h</small>`;
@@ -195,8 +215,11 @@ function event(name: string) {
     feedbackUntil = elapsed + 1.5;
     return;
   }
-  if (name === "lamp") {
-    feedback.textContent = "Lovely lamp! +50";
+  if (name === "lamp" || name === "present") {
+    feedback.textContent =
+      name === "present"
+        ? `Birthday bonus! +${PRESENT_POINTS}`
+        : "Lovely lamp! +50";
     feedback.className = "show lamp";
     feedbackUntil = elapsed + 1.1;
     return;
@@ -222,6 +245,8 @@ function finish() {
   el("result-gates").textContent = `${run.hits} / 20`;
   el("result-best").textContent = best.toLocaleString();
   el("result-lamps").textContent = `${run.lamps} / 20 lovely lamps`;
+  el("result-presents").textContent =
+    `${run.presents.collected} birthday presents · +${run.presents.collected * PRESENT_POINTS} points`;
   el("new-best").hidden = !newBest;
   el("finish-kicker").textContent =
     run.lamps === 20
@@ -253,7 +278,12 @@ try {
       accumulator += dt;
       while (accumulator >= 1 / 120 && mode === "playing") {
         stepRun(run, -input.update(1 / 120), 1 / 120);
-        if (run.lampEvent >= 0) event("lamp");
+        if (run.lampEvent >= 0) {
+          collection.add(run.lampEvent);
+          refreshCollection();
+          event("lamp");
+        }
+        if (run.presents.event) event("present");
         if (run.event) event(run.event);
         accumulator -= 1 / 120;
       }

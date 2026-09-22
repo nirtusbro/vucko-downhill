@@ -1,6 +1,8 @@
 import * as THREE from "three";
-import { LAMPS, snowHeight, type Run } from "./physics";
+import { FINISH_Z, LAMPS, snowHeight, type Run } from "./physics";
+import { LAMP_NAMES } from "./collection";
 import { box, cylinder, material, rod, shape, sphere } from "./geometry";
+import { PRESENT_FALL_TIME, PRESENT_POOL_SIZE } from "./presents";
 
 const brass = material("#ceaa64"),
   ivory = material("#fff0cd"),
@@ -14,18 +16,12 @@ const bulb = new THREE.MeshBasicMaterial({
 });
 const ribbon = material("#f5d591"),
   oak = material("#a87d5b");
-const designs = [
-  "Rose mushroom",
-  "Lavender pleats",
-  "Emerald banker",
-  "Blue porcelain",
-];
 const palettes = [rose, lilac, mint, powder];
 
 /** Four small table-lamp sculptures. Clones share geometry/materials. No dynamic lights. */
 function makeLamp(style: number) {
   const g = new THREE.Group();
-  g.name = designs[style];
+  g.name = LAMP_NAMES[style];
   shape(g, cylinder, brass, [0, 0.08, 0], [0.4, 0.12, 0.4]);
   shape(g, cylinder, palettes[style], [0, 0.16, 0], [0.3, 0.08, 0.3]);
   shape(g, cylinder, brass, [0, 0.7, 0], [0.045, 1.05, 0.045]);
@@ -138,6 +134,7 @@ function gift(
       [1, 0.58, 1],
       [0.2, side * 0.35, side * 0.3],
     );
+  return g;
 }
 
 function bunting(parent: THREE.Object3D, x: number, z: number) {
@@ -185,7 +182,26 @@ export class Birthday {
   private previousCollected = LAMPS.map(() => false);
   private menuDisplay = new THREE.Group();
   private prototypes = [0, 1, 2, 3].map(makeLamp);
+  private fallingGifts: { model: THREE.Group; marker: THREE.Mesh }[] = [];
   constructor(scene: THREE.Scene) {
+    const ring = new THREE.RingGeometry(1.8, 2.15, 32);
+    for (let i = 0; i < PRESENT_POOL_SIZE; i++) {
+      const model = gift(scene, 0, 0, 1.65, palettes[i]);
+      const marker = new THREE.Mesh(
+        ring,
+        new THREE.MeshBasicMaterial({
+          color: "#d6a02b",
+          transparent: true,
+          opacity: 0.8,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        }),
+      );
+      marker.rotation.x = -Math.PI / 2 + 0.1;
+      model.visible = marker.visible = false;
+      scene.add(marker);
+      this.fallingGifts.push({ model, marker });
+    }
     const glowCanvas = document.createElement("canvas");
     glowCanvas.width = 64;
     glowCanvas.height = 64;
@@ -220,7 +236,11 @@ export class Birthday {
       this.lamps.push(g);
     }
     // A few small birthday corners sit outside the racing line.
-    for (const [i, z] of [36, 275, 515, 780, 1035, 1290, 1420].entries()) {
+    for (const [i, z] of [
+      36,
+      ...[0.2, 0.4, 0.6, 0.8].map((t) => FINISH_Z * t),
+      FINISH_Z + 10,
+    ].entries()) {
       const group = new THREE.Group(),
         x = (i % 2 ? 1 : -1) * 23;
       gift(group, x, z, 1.15, palettes[i % 4]);
@@ -265,6 +285,45 @@ export class Birthday {
     this.pickupTimes.fill(-10);
   }
   update(s: Run, time: number, mode: string) {
+    for (const [i, visual] of this.fallingGifts.entries()) {
+      const present = s.presents.items[i];
+      const visible =
+        present.phase !== "inactive" && mode !== "menu" && mode !== "how";
+      visual.model.visible = visible;
+      visual.marker.visible = visible && present.phase !== "collected";
+      if (!visible) continue;
+      const falling = present.phase === "falling";
+      const collected = present.phase === "collected";
+      const height = falling
+        ? 28 * (1 - (present.age / PRESENT_FALL_TIME) ** 2)
+        : collected
+          ? present.age * 6
+          : 0.12 + Math.sin(s.time * 3) * 0.08;
+      visual.model.position.set(
+        present.x,
+        snowHeight(present.z) + height,
+        present.z,
+      );
+      visual.model.rotation.set(
+        falling ? Math.sin(present.age * 4) * 0.15 : 0,
+        s.time * (falling ? 1.6 : 0.65),
+        0,
+      );
+      visual.model.scale.setScalar(
+        collected ? Math.max(0, 1 - present.age / 0.5) : 1,
+      );
+      visual.marker.position.set(
+        present.x,
+        snowHeight(present.z) + 0.06,
+        present.z,
+      );
+      visual.marker.scale.setScalar(
+        falling ? 1 + Math.sin(s.time * 8) * 0.12 : 1,
+      );
+      (visual.marker.material as THREE.MeshBasicMaterial).opacity = falling
+        ? 0.85
+        : 0.5;
+    }
     this.menuDisplay.visible = mode === "menu" || mode === "how";
     for (const g of this.decorations)
       g.visible = g.userData.z > s.z - 45 && g.userData.z < s.z + 230;

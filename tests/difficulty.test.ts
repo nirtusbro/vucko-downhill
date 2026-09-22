@@ -4,6 +4,19 @@ import { readBest, writeValue } from "../src/storage";
 const levels = ["easy", "classic", "expert"] as const;
 
 describe("difficulty", () => {
+  it("places successive gates 45 metres apart for quicker direction changes", () => {
+    for (let i = 1; i < GATES.length; i++) {
+      expect(GATES[i].z - GATES[i - 1].z).toBe(45);
+    }
+  });
+  it("gets every mode moving briskly within three seconds", () => {
+    for (const [index, level] of levels.entries()) {
+      const run = createRun(level);
+      for (let tick = 0; tick < 360; tick++) stepRun(run, 0, 1 / 120);
+      expect(run.speed).toBeGreaterThan([22, 28, 34][index]);
+      expect(run.z).toBeGreaterThan([57, 70, 85][index]);
+    }
+  });
   it("gives Easy more reaction time and Expert less than Classic", () => {
     const runs = levels.map((level) => createRun(level));
     for (const run of runs)
@@ -33,7 +46,7 @@ describe("difficulty", () => {
   });
   for (const level of levels)
     it(`keeps all gates and optional lamps reachable in ${level}`, () => {
-      const run = createRun(level);
+      const run = createRun(level, 42);
       const targets = [...GATES, ...LAMPS].sort((a, b) => a.z - b.z);
       let next = 0;
       for (let tick = 0; tick < 120 * 180 && !run.finished; tick++) {
@@ -51,9 +64,9 @@ describe("difficulty", () => {
       expect(run.finished).toBe(true);
       expect(run.hits).toBe(20);
       expect(run.lamps).toBe(20);
-      expect(run.score).toBe(8400);
-      expect(run.time).toBeGreaterThan(60);
-      expect(run.time).toBeLessThan(180);
+      expect(run.score).toBe(8400 + run.presents.collected * 200);
+      expect(run.time).toBeGreaterThan(27);
+      expect(run.time).toBeLessThan(60);
     });
 });
 

@@ -1,4 +1,5 @@
 import { DIFFICULTIES, gateWidth, type DifficultyId } from "./difficulty";
+import { createPresents, stepPresents } from "./presents";
 
 export interface Run {
   difficulty: DifficultyId;
@@ -14,6 +15,7 @@ export interface Run {
   lamps: number;
   collectedLamps: boolean[];
   lampEvent: number;
+  presents: ReturnType<typeof createPresents>;
   crashTime: number;
   invincible: number;
   finished: boolean;
@@ -24,11 +26,11 @@ const lines = [
 ];
 export const GATES = lines.map((x, i) => ({
   x,
-  z: 65 + i * 65,
+  z: 65 + i * 45,
   width: i < 4 ? 10 : 8.5,
   color: i % 2 ? "blue" : "red",
 }));
-export const FINISH_Z = 1410;
+export const FINISH_Z = GATES[GATES.length - 1].z + 80;
 // Optional detours halfway through each open stretch, clear of the gate line.
 export const LAMPS = GATES.map((gate, i) => {
   const next = GATES[i + 1] ?? { x: 0, z: FINISH_Z };
@@ -47,12 +49,15 @@ export const clamp = (n: number, a: number, b: number) =>
   Math.max(a, Math.min(b, n));
 export const snowHeight = (z: number) =>
   -z * 0.1 + Math.sin(z * 0.022) * 0.45 + Math.sin(z * 0.064) * 0.15;
-export function createRun(difficulty: DifficultyId = "classic"): Run {
+export function createRun(
+  difficulty: DifficultyId = "classic",
+  seed = Math.floor(Math.random() * 4294967296),
+): Run {
   return {
     difficulty,
     x: 0,
     z: 0,
-    speed: 6,
+    speed: DIFFICULTIES[difficulty].speed * 0.5,
     heading: 0,
     time: 0,
     nextGate: 0,
@@ -62,6 +67,7 @@ export function createRun(difficulty: DifficultyId = "classic"): Run {
     lamps: 0,
     collectedLamps: LAMPS.map(() => false),
     lampEvent: -1,
+    presents: createPresents(seed),
     crashTime: 0,
     invincible: 0,
     finished: false,
@@ -71,6 +77,7 @@ export function createRun(difficulty: DifficultyId = "classic"): Run {
 export function stepRun(s: Run, input: number, dt: number) {
   s.event = "";
   s.lampEvent = -1;
+  s.presents.event = false;
   if (s.finished || dt <= 0) return;
   const settings = DIFFICULTIES[s.difficulty];
   dt = Math.min(dt, 0.05);
@@ -92,7 +99,7 @@ export function stepRun(s: Run, input: number, dt: number) {
       (1 - Math.exp(-4.4 * dt));
     const targetSpeed =
       settings.speed - Math.abs(s.heading) * 6 + Math.sin(s.z * 0.015) * 0.8;
-    s.speed += (targetSpeed - s.speed) * (1 - Math.exp(-0.8 * dt));
+    s.speed += (targetSpeed - s.speed) * (1 - Math.exp(-1.1 * dt));
     s.x +=
       (Math.sin(oldHeading) * oldSpeed + Math.sin(s.heading) * s.speed) *
       dt *
@@ -147,6 +154,7 @@ export function stepRun(s: Run, input: number, dt: number) {
       }
     }
   }
+  stepPresents(s, oldX, oldZ, dt, GATES, FINISH_Z);
   while (s.nextGate < GATES.length && s.z >= GATES[s.nextGate].z) {
     const gate = GATES[s.nextGate];
     const t = clamp((gate.z - oldZ) / Math.max(0.001, s.z - oldZ), 0, 1);

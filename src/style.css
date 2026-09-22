@@ -131,6 +131,70 @@ h1 span {
   font-weight: 700;
   transform: rotate(5deg);
 }
+.lamp-shelf {
+  position: absolute;
+  right: 7%;
+  bottom: 12%;
+  width: 330px;
+  padding: 13px 17px 10px;
+  border-radius: 18px;
+  background: #f8fbf1dc;
+  box-shadow:
+    0 5px 0 #d5b895,
+    0 12px 24px #163d5910;
+}
+.shelf-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.shelf-heading h2 {
+  font-size: 13px;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+.shelf-heading > span {
+  font-size: 9px;
+  font-weight: 800;
+  color: #647c85;
+}
+.shelf-lamps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 8px;
+}
+.shelf-lamp {
+  display: grid;
+  justify-items: center;
+  position: relative;
+  font-size: 9px;
+  color: #7b8a91;
+}
+.shelf-lamp svg {
+  width: 64px;
+  height: 64px;
+  filter: grayscale(1);
+  opacity: 0.25;
+}
+.shelf-lamp strong {
+  font-size: 11px;
+  margin-top: 2px;
+}
+.shelf-lamp.owned {
+  color: #163d59;
+}
+.shelf-lamp.owned svg {
+  filter: none;
+  opacity: 1;
+}
+.lamp-halo {
+  fill: #f6d987;
+  opacity: 0;
+}
+.owned .lamp-halo {
+  opacity: 0.27;
+}
 .menu-bottom {
   position: absolute;
   bottom: 13%;
@@ -911,12 +975,14 @@ h1 span {
   font-weight: 900;
   letter-spacing: -0.025em;
 }
-.lamp-counter {
+.lamp-counter,
+.present-counter {
   display: flex;
   align-items: center;
   gap: 7px;
 }
 .lamp-counter svg,
+.present-counter svg,
 .birthday-collection svg {
   width: 25px;
   height: 28px;
@@ -926,12 +992,20 @@ h1 span {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.lamp-counter strong {
+.lamp-counter strong,
+.present-counter strong {
   font-size: 15px;
   font-weight: 900;
 }
-.lamp-counter small {
+.lamp-counter small,
+.present-counter small {
   font-size: 10px;
+}
+@media (max-width: 350px) {
+  .lamp-counter small,
+  .present-counter small {
+    display: none;
+  }
 }
 .run-footer:has(.lamp-counter) {
   opacity: 0.9;
@@ -969,10 +1043,15 @@ h1 span {
 }
 @media (max-height: 600px) and (orientation: landscape) {
   .title {
-    top: 19%;
+    top: 17%;
+    right: auto;
+    width: 260px;
   }
   .title h1 {
-    font-size: 76px;
+    font-size: 52px;
+  }
+  .title h1 span {
+    margin-top: 8px;
   }
   .title .birthday-note {
     margin: 9px 0 0;
@@ -987,5 +1066,98 @@ h1 span {
   .dialog .lamp-help {
     margin-bottom: 10px;
     font-size: 11px;
+  }
+}
+@media (max-width: 600px) and (orientation: portrait),
+  (max-aspect-ratio: 5/4) and (orientation: portrait) {
+  .lamp-shelf {
+    top: calc(65px + var(--safe-top));
+    bottom: auto;
+    left: 24px;
+    right: 24px;
+    width: auto;
+    padding: 8px 12px 6px;
+    border-radius: 12px;
+    box-shadow: 0 3px 0 #d5b895;
+  }
+  .shelf-heading h2 {
+    font-size: 11px;
+  }
+  .shelf-heading > span {
+    font-size: 8px;
+  }
+  .shelf-lamps {
+    margin-top: 3px;
+  }
+  .shelf-lamp svg {
+    width: 43px;
+    height: 43px;
+  }
+  .shelf-lamp strong {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    font-size: 9px;
+  }
+  .shelf-lamp > span {
+    display: none;
+  }
+  .title {
+    top: calc(max(164px, 20%) + var(--safe-top));
+  }
+}
+@media (max-height: 700px) and (orientation: portrait) {
+  .lamp-shelf {
+    top: calc(59px + var(--safe-top));
+  }
+  .shelf-lamp svg {
+    width: 32px;
+    height: 32px;
+  }
+  .title {
+    top: calc(137px + var(--safe-top));
+  }
+  .title h1 {
+    font-size: 70px;
+  }
+  .title .birthday-note {
+    font-size: 12px;
+    margin-top: 12px;
+  }
+  .menu-bottom {
+    bottom: 5%;
+  }
+}
+@media (max-height: 600px) and (orientation: landscape) {
+  .lamp-shelf {
+    right: 5%;
+    bottom: 12%;
+    width: 190px;
+    padding: 6px 9px;
+    border-radius: 10px;
+  }
+  .shelf-heading h2 {
+    font-size: 10px;
+  }
+  .shelf-heading > span {
+    font-size: 8px;
+  }
+  .shelf-heading {
+    flex-wrap: wrap;
+    gap: 0 6px;
+  }
+  .shelf-lamps {
+    margin-top: 2px;
+  }
+  .shelf-lamp svg {
+    width: 30px;
+    height: 30px;
+  }
+  .shelf-lamp > span {
+    display: none;
+  }
+  .shelf-lamp strong {
+    font-size: 8px;
+    margin: 0;
   }
 }
