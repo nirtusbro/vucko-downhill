@@ -11,14 +11,16 @@
       name="description"
       content="Happy birthday, Ljubica! A snowy adventure with Vučko, lovely lamps, and a mountain full of little surprises."
     />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Vučko" />
     <meta
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
     />
     <title>Happy birthday, Ljubica! — Vučko</title>
-    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
-    <link rel="apple-touch-icon" href="./icon-192.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="./favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
     <link rel="manifest" href="./manifest.webmanifest" />
   </head>
   <body>
@@ -74,7 +76,10 @@
           <button id="play" class="primary"><span id="play-label">Ski level 1</span> <span>↗</span></button
           ><button id="endless" class="endless-button">Endless <span>∞</span></button
           ><p id="endless-record" class="endless-record"></p
-          ><button id="how" class="text-button">How to play</button>
+          ><button id="how" class="text-button">How to play</button
+          ><button id="update-app" class="text-button update-button" hidden>
+            Update ready · Restart
+          </button>
           <p class="desktop-hint">
             ← → or A / D to carve
           </p>

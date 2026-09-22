@@ -19,6 +19,7 @@ import { readValue, writeValue } from "./storage";
 import { PRESENT_POINTS } from "./presents";
 import { LevelProgress } from "./progress";
 import { LevelMap } from "./collection-view";
+import { setupPwa } from "./pwa";
 import { LAMP_CATALOG } from "./lamp-catalog";
 import { lampArt } from "./lamp-art";
 import {
@@ -575,3 +576,4 @@ try {
   el("error").hidden = false;
   console.error(error);
 }
+setupPwa(el("update-app") as HTMLButtonElement);

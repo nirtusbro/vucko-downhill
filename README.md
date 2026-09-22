@@ -19,7 +19,7 @@ npm run build # TypeScript checks + production static build
 npm run preview
 ```
 
-Deploy the contents of `dist/` to any static HTTPS host. Relative asset paths support hosting at a subdirectory. There is no backend. `public/manifest.webmanifest`, SVG and PNG icons, Apple home-screen metadata and standalone display are included. This is PWA-ready; an offline service worker is deliberately not installed. Add to Home Screen is best checked on the final HTTPS URL.
+Deploy the contents of `dist/` to any static HTTPS host. Relative asset paths support hosting at a subdirectory. There is no backend. `public/manifest.webmanifest`, PNG icons (regular and maskable), Apple home-screen metadata and standalone display are included. A Workbox service worker (`dist/sw.js`, built by `vite-plugin-pwa`) precaches the whole game so it runs offline once installed. New builds are not applied mid-run: when one is ready an “Update ready · Restart” button appears on the menu. Add to Home Screen is best checked on the final HTTPS URL: on Android, Chrome offers Install; on iPhone, use Share → Add to Home Screen in Safari.
 
 ## Play
 
@@ -107,6 +107,6 @@ Simulation runs at 120 fixed steps per second independently of rendering. Render
 
 The automated tests cover acceleration, steering inertia, edge resistance, 30/120-Hz trajectory consistency, single-award gate scoring, bullseyes and the ×8 combo, gate tightening and the slope ramp, missed gates, boundary/rock crash recovery, simultaneous collision/gate feedback, hazard placement rules and hazard-free present landings, ghost sampling, pace and storage, level progress, immediate pickup saves and unlocking, twenty distinct hand-placed layouts covering all hundred lamps with rising speed and narrowing gates, one feature per stretch, hazards clear of gate lines, no straight-line gate pairs without a rock between them, presents fixed per level, reachability of every gate and pickup on all 20 levels with a passable goal, an un-passable straight line on every level, owned lamps hidden on replay, frozen finish time, pickup bonuses, missed pickups, and replay resets. Browser checks and outstanding physical-device checks are recorded in `docs/verification.md`.
 
-To regenerate home-screen icons after editing `public/icon.svg`, run `node scripts/icons.mjs`.
+To regenerate home-screen icons after replacing `art/icon-master.png` (a square PNG), run `npm run icons`.
 
 The bundled Nunito typeface is distributed under the SIL Open Font License (see `node_modules/@fontsource-variable/nunito/LICENSE`).
