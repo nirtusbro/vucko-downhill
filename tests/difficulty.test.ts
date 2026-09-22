@@ -1,5 +1,11 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
-import { createRun, stepRun, GATES, LAMPS, clamp } from "../src/physics";
+import {
+  createRun,
+  stepRun,
+  GATES,
+  LAMPS_PER_RUN,
+  clamp,
+} from "../src/physics";
 import { readBest, writeValue } from "../src/storage";
 const levels = ["easy", "classic", "expert"] as const;
 
@@ -47,7 +53,7 @@ describe("difficulty", () => {
   for (const level of levels)
     it(`keeps all gates and optional lamps reachable in ${level}`, () => {
       const run = createRun(level, 42);
-      const targets = [...GATES, ...LAMPS].sort((a, b) => a.z - b.z);
+      const targets = [...GATES, ...run.lampSpots].sort((a, b) => a.z - b.z);
       let next = 0;
       for (let tick = 0; tick < 120 * 180 && !run.finished; tick++) {
         while (next < targets.length && run.z >= targets[next].z) next++;
@@ -63,9 +69,9 @@ describe("difficulty", () => {
       }
       expect(run.finished).toBe(true);
       expect(run.hits).toBe(20);
-      expect(run.lamps).toBe(20);
+      expect(run.lamps).toBe(LAMPS_PER_RUN);
       expect(run.score).toBe(
-        8400 + run.presents.collected * 200 + run.timeBonus,
+        7800 + run.presents.collected * 200 + run.timeBonus,
       );
       expect(run.time).toBeGreaterThan(27);
       expect(run.time).toBeLessThan(60);

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { FINISH_Z, LAMPS, snowHeight, type Run } from "./physics";
+import { FINISH_Z, LAMPS_PER_RUN, snowHeight, type Run } from "./physics";
 import { lampModel } from "./lamp-model";
 import { box, cylinder, material, rod, shape, sphere } from "./geometry";
 import { PRESENT_FALL_TIME, PRESENT_POOL_SIZE } from "./presents";
@@ -105,8 +105,11 @@ function bunting(parent: THREE.Object3D, x: number, z: number) {
 export class Birthday {
   private lamps: THREE.Group[] = [];
   private decorations: THREE.Group[] = [];
-  private pickupTimes = LAMPS.map(() => -10);
-  private previousCollected = LAMPS.map(() => false);
+  private pickupTimes = Array.from({ length: LAMPS_PER_RUN }, () => -10);
+  private previousCollected = Array.from(
+    { length: LAMPS_PER_RUN },
+    () => false,
+  );
   private menuDisplay = new THREE.Group();
   private activeLampIds: number[] | null = null;
   private fallingGifts: { model: THREE.Group; marker: THREE.Mesh }[] = [];
@@ -144,9 +147,8 @@ export class Birthday {
       depthWrite: false,
       toneMapped: false,
     });
-    for (let i = 0; i < LAMPS.length; i++) {
+    for (let i = 0; i < LAMPS_PER_RUN; i++) {
       const g = new THREE.Group();
-      g.position.set(LAMPS[i].x, snowHeight(LAMPS[i].z), LAMPS[i].z);
       const lamp = lampModel(i % 4);
       lamp.scale.setScalar(1.22);
       lamp.name = "lamp";
@@ -216,6 +218,8 @@ export class Birthday {
     if (this.activeLampIds !== s.lampIds) {
       this.activeLampIds = s.lampIds;
       this.lamps.forEach((group, i) => {
+        const spot = s.lampSpots[i];
+        group.position.set(spot.x, snowHeight(spot.z), spot.z);
         group.remove(group.getObjectByName("lamp")!);
         group.add(lampModel(s.lampIds[i]));
       });
@@ -270,8 +274,8 @@ export class Birthday {
       this.previousCollected[i] = s.collectedLamps[i];
       const age = time - this.pickupTimes[i];
       g.visible =
-        LAMPS[i].z > s.z - 12 &&
-        LAMPS[i].z < s.z + 230 &&
+        s.lampSpots[i].z > s.z - 12 &&
+        s.lampSpots[i].z < s.z + 230 &&
         (!s.collectedLamps[i] || age < 0.42);
       if (!g.visible) continue;
       lamp.rotation.y = Math.sin(time * 0.8 + i) * 0.3;

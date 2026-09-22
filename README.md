@@ -28,8 +28,8 @@ Deploy the contents of `dist/` to any static HTTPS host. Relative asset paths su
 - Pass between both flags of each gate. Hits award 100 points multiplied by a combo that caps at ×4.
 - Choose Easy, Classic or Expert on the home screen. Cruising speeds are approximately 86, 108 and 130 km/h; sharper carving costs speed. Easy has wider gates and gentler turns; Expert has tight gates and stronger turns. Your selection and each mode's best score are saved separately.
 - A prominent **High score** on the home screen shows your saved record for the selected difficulty, updates after a new best and survives reloads.
-- Collect optional table lamps in the open stretches between gates for 50 extra points. Each sits halfway to the next gate (or finish), slightly off the direct line, leaving room for a bonus detour. Each run rolls 20 distinct designs from a catalogue of 100 lamps. Ten shape families and ten finishes vary silhouettes, proportions, colours and decorative details. Collected lamps float up and disappear with a chime. The HUD and finish screen show the collection count. A perfect run with all 20 lamps scores 8,400 before present and finish-time bonuses.
-- Birthday presents fall at random locations every 3.8–6.5 seconds. Gold rings mark their landing spots; ski close after they land for +200 points. Drops stay clear of gate stations and the slope edges, and vary each run. Missed presents disappear; they never cause a crash or break your combo.
+- Collect optional table lamps in the open stretches between gates for 50 extra points. Each run places 8 lamps, chosen by the run seed with one lamp per band of two or three stretches, so their spots vary between runs and never bunch. A lamp sits halfway to the next gate, held 5 metres wide of the direct line on the previous gate's side, so a pickup means holding your line and cutting back late for the next gate. Each run rolls 8 distinct designs from a catalogue of 100 lamps. Ten shape families and ten finishes vary silhouettes, proportions, colours and decorative details. Collected lamps float up and disappear with a chime. The HUD and finish screen show the collection count. A perfect run with all 8 lamps scores 7,800 before present and finish-time bonuses.
+- A birthday present falls at a random location about 5.5 seconds into the run and then every 9–14 seconds, so a typical run sees three or four. Gold rings mark their landing spots; ski close after they land for +200 points. Drops stay clear of gate stations and the slope edges, and vary each run. Missed presents disappear; they never cause a crash or break your combo.
 - Every lamp pickup is saved immediately to **Ljubica’s collection**, accessible from the home screen and finish results. The gallery shows collected lamps in colour and undiscovered ones as black silhouettes, with filters for collected/missing and rarity. Counts persist across runs and reloads; the original four lamp counts migrate automatically. If storage is unavailable, progress stays available for the session.
 - **Rarity:** 40 Common, 30 Uncommon, 20 Rare, 8 Epic and 2 Legendary designs. Base tier weights are 55/25/14/5/1; weighted sampling without replacement and a 3× weight for unseen designs help collection progress. All 100 can appear in any difficulty.
 - **Finish-time bonus:** `max(0, round((90 − seconds) × 50))`, awarded only once after crossing the finish. Faster runs earn more; slow runs lose no existing points. The result shows on-slope points, time bonus and total separately. Existing high scores are preserved.
@@ -41,11 +41,11 @@ Deploy the contents of `dist/` to any static HTTPS host. Relative asset paths su
 
 | File                 | Responsibility                                                              |
 | -------------------- | --------------------------------------------------------------------------- |
-| `src/physics.ts`     | Renderer-independent movement, course, collisions, scoring and finish       |
+| `src/physics.ts`     | Renderer-independent movement, course, seeded lamp spots, collisions, scoring and finish |
 | `src/difficulty.ts`  | Speed, steering, gate opening and lamp pickup settings per mode             |
 | `src/presents.ts`    | Random timed drops, landing, swept pickup scoring and bounded gift pool    |
 | `src/collection.ts`  | Versioned collection counts, original-save migration and storage fallback        |
-| `src/lamp-catalog.ts` | Stable 100-design catalogue and weighted run selection |
+| `src/lamp-catalog.ts` | Stable 100-design catalogue, lamps per run and weighted run selection |
 | `src/lamp-model.ts` | Cached 3D sculptures for all ten shape families |
 | `src/lamp-art.ts` | Matching SVG collection illustrations |
 | `src/collection-view.ts` | Gallery, filters and home preview |

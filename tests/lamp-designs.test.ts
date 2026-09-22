@@ -20,7 +20,7 @@ describe("individually designed lamps", () => {
   it("renders 100 distinct silhouettes even with all colours removed", async () => {
     const masks = await Promise.all(LAMP_CATALOG.map(async (lamp) => {
       const svg = lampArt({...lamp, color:"#000000", accent:"#000000", trim:"#000000"});
-      const pixels = await sharp(Buffer.from(svg)).resize(80,88).ensureAlpha().raw().toBuffer();
+      const pixels = await sharp(new TextEncoder().encode(svg)).resize(80,88).ensureAlpha().raw().toBuffer();
       return Array.from({length:80*88}, (_,i)=>pixels[i*4+3]>128?1:0);
     }));
     expect(new Set(masks.map((mask)=>mask.join(""))).size).toBe(100);

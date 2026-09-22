@@ -3,7 +3,7 @@ import {
   createRun,
   stepRun,
   GATES,
-  LAMPS,
+  LAMPS_PER_RUN,
   FINISH_Z,
   OBSTACLES,
   clamp,
@@ -106,7 +106,7 @@ describe("skiing", () => {
   });
   it("allows every gate to be reached by steering within the normal input range", () => {
     const s = createRun("classic", 42);
-    const targets = [...GATES, ...LAMPS].sort((a, b) => a.z - b.z);
+    const targets = [...GATES, ...s.lampSpots].sort((a, b) => a.z - b.z);
     let nextTarget = 0;
     for (let tick = 0; tick < 120 * 180 && !s.finished; tick++) {
       while (nextTarget < targets.length && s.z >= targets[nextTarget].z)
@@ -120,8 +120,8 @@ describe("skiing", () => {
     }
     expect(s.finished).toBe(true);
     expect(s.hits).toBe(20);
-    expect(s.lamps).toBe(20);
-    expect(s.score).toBe(8400 + s.presents.collected * 200 + s.timeBonus);
+    expect(s.lamps).toBe(LAMPS_PER_RUN);
+    expect(s.score).toBe(7800 + s.presents.collected * 200 + s.timeBonus);
     expect(s.time).toBeGreaterThan(32);
     expect(s.time).toBeLessThan(45);
   });

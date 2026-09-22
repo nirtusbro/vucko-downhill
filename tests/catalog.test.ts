@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LAMP_CATALOG, rollLamps } from "../src/lamp-catalog";
+import { LAMP_CATALOG, LAMPS_PER_RUN, rollLamps } from "../src/lamp-catalog";
 import { createRun } from "../src/physics";
 describe("100-lamp catalogue", () => {
   it("has 100 unique designs and names across five rarities", () => {
@@ -12,10 +12,11 @@ describe("100-lamp catalogue", () => {
         .size,
     ).toBe(100);
   });
-  it("rolls 20 distinct lamps reproducibly, changing between runs", () => {
+  it("rolls one run of distinct lamps reproducibly, changing between runs", () => {
     const lamps = rollLamps(42);
-    expect(lamps).toHaveLength(20);
-    expect(new Set(lamps).size).toBe(20);
+    expect(lamps).toHaveLength(LAMPS_PER_RUN);
+    expect(new Set(lamps).size).toBe(LAMPS_PER_RUN);
+    expect(rollLamps(42, [], 20)).toHaveLength(20);
     expect(lamps).toEqual(rollLamps(42));
     expect(lamps).not.toEqual(rollLamps(43));
     expect(createRun("classic", 42).lampIds).toEqual(lamps);

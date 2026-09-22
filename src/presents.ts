@@ -2,7 +2,11 @@ import type { Run } from "./physics";
 
 export const PRESENT_POINTS = 200;
 export const PRESENT_FALL_TIME = 1.8;
-export const PRESENT_POOL_SIZE = 3;
+export const PRESENT_POOL_SIZE = 2;
+// A handful of surprises per run: the first after a few seconds, then well spaced.
+export const PRESENT_FIRST_DROP = 5.5;
+export const PRESENT_MIN_GAP = 9;
+export const PRESENT_GAP_SPREAD = 5;
 export interface Present {
   phase: "inactive" | "falling" | "landed" | "collected";
   x: number;
@@ -12,7 +16,7 @@ export interface Present {
 export function createPresents(seed: number) {
   return {
     seed: seed >>> 0,
-    nextDrop: 1.2,
+    nextDrop: PRESENT_FIRST_DROP,
     collected: 0,
     event: false,
     items: Array.from({ length: PRESENT_POOL_SIZE }, (): Present => ({
@@ -71,7 +75,8 @@ export function stepPresents(
       gift.phase = "inactive";
   }
   if (run.time < state.nextDrop) return;
-  state.nextDrop = run.time + 3.8 + random(state) * 2.7;
+  state.nextDrop =
+    run.time + PRESENT_MIN_GAP + random(state) * PRESENT_GAP_SPREAD;
   const slot = state.items.find((gift) => gift.phase === "inactive");
   if (!slot) return;
   let z = run.z + Math.max(85, run.speed * (3.2 + random(state) * 0.5));

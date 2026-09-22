@@ -86,8 +86,14 @@ const weights: Record<Rarity, number> = {
   Epic: 5 / 8,
   Legendary: 1 / 2,
 };
-/** Weighted sampling without replacement: twenty different designs per run. */
-export function rollLamps(seed: number, counts: readonly number[] = []) {
+/** Lamps placed on the slope in one run. */
+export const LAMPS_PER_RUN = 8;
+/** Weighted sampling without replacement: distinct designs for one run. */
+export function rollLamps(
+  seed: number,
+  counts: readonly number[] = [],
+  count = LAMPS_PER_RUN,
+) {
   let state = (seed ^ 0x9e3779b9) >>> 0;
   const random = () => {
     state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
@@ -98,7 +104,7 @@ export function rollLamps(seed: number, counts: readonly number[] = []) {
     weight: weights[lamp.rarity] * (counts[lamp.id] ? 1 : 3),
   }));
   const result: number[] = [];
-  while (result.length < 20) {
+  while (result.length < count) {
     let roll =
       random() * candidates.reduce((sum, entry) => sum + entry.weight, 0);
     let index = candidates.length - 1;

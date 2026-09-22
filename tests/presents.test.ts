@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { createRun, stepRun, GATES, FINISH_Z } from "../src/physics";
+import {
+  PRESENT_FIRST_DROP,
+  PRESENT_MIN_GAP,
+  PRESENT_GAP_SPREAD,
+} from "../src/presents";
+const ticksUntilFirstDrop = Math.ceil(PRESENT_FIRST_DROP * 120) + 30;
 
 describe("falling birthday presents", () => {
   it("drops ahead with time to react, clear of flags and the slope edges", () => {
     for (let seed = 1; seed <= 50; seed++) {
       const run = createRun("expert", seed);
-      for (let i = 0; i < 180; i++) stepRun(run, 0, 1 / 120);
+      for (let i = 0; i < ticksUntilFirstDrop; i++) stepRun(run, 0, 1 / 120);
       const gift = run.presents.items.find((item) => item.phase === "falling")!;
       expect(gift).toBeDefined();
       expect(gift.z - run.z).toBeGreaterThan(run.speed * 2);
@@ -20,9 +26,36 @@ describe("falling birthday presents", () => {
       createRun("classic", 43),
     ];
     for (const run of runs)
-      for (let i = 0; i < 180; i++) stepRun(run, 0, 1 / 120);
+      for (let i = 0; i < ticksUntilFirstDrop; i++) stepRun(run, 0, 1 / 120);
     expect(runs[0].presents.items).toEqual(runs[1].presents.items);
     expect(runs[0].presents.items).not.toEqual(runs[2].presents.items);
+  });
+  it("drops only a few well-spaced presents in a run", () => {
+    expect(PRESENT_FIRST_DROP).toBeGreaterThanOrEqual(5);
+    expect(PRESENT_MIN_GAP).toBeGreaterThanOrEqual(9);
+    for (let seed = 1; seed <= 30; seed++) {
+      const run = createRun("easy", seed);
+      const dropTimes: number[] = [];
+      let falling = 0;
+      for (let i = 0; i < 120 * 120 && !run.finished; i++) {
+        stepRun(run, 0, 1 / 120);
+        const now = run.presents.items.filter(
+          (item) => item.phase === "falling",
+        ).length;
+        if (now > falling) dropTimes.push(run.time);
+        falling = now;
+      }
+      expect(run.finished).toBe(true);
+      expect(dropTimes.length).toBeGreaterThanOrEqual(2);
+      expect(dropTimes.length).toBeLessThanOrEqual(5);
+      for (let i = 1; i < dropTimes.length; i++) {
+        const gap = dropTimes[i] - dropTimes[i - 1];
+        expect(gap).toBeGreaterThanOrEqual(PRESENT_MIN_GAP - 0.05);
+        expect(gap).toBeLessThanOrEqual(
+          PRESENT_MIN_GAP + PRESENT_GAP_SPREAD + 0.05,
+        );
+      }
+    }
   });
   it("collects a landed present exactly once for 200 points without altering combo", () => {
     const run = createRun();

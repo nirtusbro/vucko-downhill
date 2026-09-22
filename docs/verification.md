@@ -2,8 +2,8 @@
 
 ## Automated checks
 
-- 54 tests pass across physics, difficulty, collections, presents, boost and finish-time scoring. New checks cover 100 unique stable designs, 20 distinct seeded picks per run, all designs obtainable across seeded runs, rarity weighting, undiscovered-design preference, legacy count migration, reload persistence, and a single finish-only time bonus.
-- A controller using only normal steering completes the shorter course in every difficulty, hits all 20 gates and collects all 20 lamps for 8,400 points plus present and time bonuses, in 27–60 seconds. Every mode reaches its increased pace within three seconds.
+- 60 tests pass across physics, difficulty, collections, presents, boost and finish-time scoring. Checks cover 100 unique stable designs, distinct seeded picks per run, 8 seeded lamp spots per run spread over every band of stretches with every spot reachable across seeds, lamps held 5 metres wide of the gate line, present drops limited to two to five per run at least 9 seconds apart, all designs obtainable across seeded runs, rarity weighting, undiscovered-design preference, legacy count migration, reload persistence, and a single finish-only time bonus.
+- A controller using only normal steering completes the shorter course in every difficulty, hits all 20 gates and collects all 8 lamps for 7,800 points plus present and time bonuses, in 27–60 seconds. Every mode reaches its increased pace within three seconds.
 - TypeScript and production Vite build pass. Production JavaScript is approximately 140 KB gzip, with two local font subsets and home-screen icons.
 - `npm audit` reports no known dependency vulnerabilities.
 
@@ -19,6 +19,7 @@
 - Keepsake shelf: an Easy run on the 1,000-metre course finished in 42 seconds, collecting 3 lamps. Returning home showed one rose mushroom, one lavender pleated lamp and one blue porcelain lamp. Reloading retained all three and their matching counts. The home shelf uses four compact illustrations, which gain color when collected. Its portrait position accounts for the top safe-area inset.
 - Speed control: inspected the lower-left hold button at 390 × 844 and 320 × 568. A pointer drag beginning on the button increased Classic speed above its normal cruising range and released cleanly. Pause hid the control. The home high-score metric displayed the saved Classic 9,950, switched to Expert 0 and restored Classic correctly; it remains visible at 568 × 320. Simultaneous thumb handling is covered by automated pointer-event tests; physical two-thumb feel still needs a phone check.
 - Independent source review found no remaining important defects in core or birthday features.
+- Sparser pickups: an un-steered Classic browser run at 390 × 844 finished in 33.7 seconds with 7 gates, 1 present and 0 lamps, scoring 4,014 with the results reading “0 / 8 lovely lamps” and “+200 points”. The HUD showed “0 / 8” from the start, a lamp rendered at its seeded spot beside the racing line, and the console stayed clean. The production build passes again after replacing a Node-only Buffer call in the silhouette test.
 - 100-lamp catalogue: confirmed the previous four designs migrated with counts 15/12/11/11, all 100 slots rendered, missing lamps had solid black silhouettes, and the Legendary filter showed exactly two slots. A completed Easy run displayed 9,150 on-slope points +2,113 time points =11,263, with 15 new discoveries bringing the collection to 19/100. The Collected filter showed the matching 19 named designs; all survived a page reload. Reviewed mobile gallery artwork at 390 × 844. Scene rendering is skipped while the opaque collection page is open.
 
 ## Physical-device and deployment checks still to do

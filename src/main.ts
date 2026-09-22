@@ -1,6 +1,12 @@
 import "./style.css";
 import "./collection.css";
-import { createRun, stepRun, FINISH_Z, GATES } from "./physics";
+import {
+  createRun,
+  stepRun,
+  FINISH_Z,
+  GATES,
+  LAMPS_PER_RUN,
+} from "./physics";
 import { SkiInput } from "./input";
 import { SkiScene } from "./scene";
 import { SkiAudio } from "./audio";
@@ -111,7 +117,7 @@ function changeMode(next: string) {
 function updateHud() {
   timeEl.textContent = formatTime(run.time);
   scoreEl.textContent = run.score.toLocaleString();
-  lampsEl.textContent = `${run.lamps} / 20`;
+  lampsEl.textContent = `${run.lamps} / ${LAMPS_PER_RUN}`;
   el("present-count").textContent = String(run.presents.collected);
   gatesEl.textContent = `${run.hits} / ${GATES.length}`;
   progressEl.style.width = `${(run.z / FINISH_Z) * 100}%`;
@@ -272,12 +278,13 @@ function finish() {
     `${discoveries} new discoveries · ${collection.discovered} / 100 lamps found`;
   el("result-gates").textContent = `${run.hits} / 20`;
   el("result-best").textContent = best.toLocaleString();
-  el("result-lamps").textContent = `${run.lamps} / 20 lovely lamps`;
+  el("result-lamps").textContent =
+    `${run.lamps} / ${LAMPS_PER_RUN} lovely lamps`;
   el("result-presents").textContent =
     `${run.presents.collected} birthday presents · +${run.presents.collected * PRESENT_POINTS} points`;
   el("new-best").hidden = !newBest;
   el("finish-kicker").textContent =
-    run.lamps === 20
+    run.lamps === LAMPS_PER_RUN
       ? "Every little light, just for you. Happy birthday!"
       : "A little more light for your birthday, Ljubica.";
   changeMode("finished");

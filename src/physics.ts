@@ -1,6 +1,7 @@
 import { DIFFICULTIES, gateWidth, type DifficultyId } from "./difficulty";
 import { createPresents, stepPresents } from "./presents";
-import { rollLamps } from "./lamp-catalog";
+import { LAMPS_PER_RUN, rollLamps } from "./lamp-catalog";
+export { LAMPS_PER_RUN };
 import { finishTimeBonus } from "./scoring";
 
 export interface Run {
@@ -17,6 +18,7 @@ export interface Run {
   score: number;
   timeBonus: number;
   lampIds: number[];
+  lampSpots: { x: number; z: number }[];
   lamps: number;
   collectedLamps: boolean[];
   lampEvent: number;
@@ -36,14 +38,35 @@ export const GATES = lines.map((x, i) => ({
   color: i % 2 ? "blue" : "red",
 }));
 export const FINISH_Z = GATES[GATES.length - 1].z + 80;
-// Optional detours halfway through each open stretch, clear of the gate line.
-export const LAMPS = GATES.map((gate, i) => {
+// Candidate lamp spots: halfway through each open stretch, clear of the gate
+// line and held wide on the previous gate's side so a pickup delays the turn
+// into the next gate.
+export const LAMP_DETOUR = 5;
+export const LAMP_SPOTS = GATES.map((gate, i) => {
   const next = GATES[i + 1] ?? { x: 0, z: FINISH_Z };
   return {
-    x: (gate.x + next.x) / 2 + Math.sign(gate.x) * 3,
+    x: (gate.x + next.x) / 2 + Math.sign(gate.x) * LAMP_DETOUR,
     z: (gate.z + next.z) / 2,
   };
 });
+/** Seeded spread of lamp spots: one per band of stretches, so lamps never bunch. */
+export function pickLampSpots(seed: number) {
+  // Scramble the seed so nearby seeds still give unrelated first draws.
+  let state = seed >>> 0;
+  state = Math.imul(state ^ (state >>> 16), 0x7feb352d) >>> 0;
+  state = Math.imul(state ^ (state >>> 15), 0x846ca68b) >>> 0;
+  state = (state ^ (state >>> 16)) >>> 0;
+  const random = () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+  const band = (index: number) =>
+    Math.floor((index * LAMPS_PER_RUN) / LAMP_SPOTS.length);
+  return Array.from({ length: LAMPS_PER_RUN }, (_, i) => {
+    const options = LAMP_SPOTS.filter((_, index) => band(index) === i);
+    return options[Math.floor(random() * options.length)];
+  });
+}
 export const OBSTACLES = Array.from({ length: 32 }, (_, i) => ({
   x: (i % 2 ? 1 : -1) * (17.5 + (i % 3) * 0.7),
   z: 105 + i * 40,
@@ -73,8 +96,9 @@ export function createRun(
     score: 0,
     timeBonus: 0,
     lampIds: rollLamps(seed, collectionCounts),
+    lampSpots: pickLampSpots(seed),
     lamps: 0,
-    collectedLamps: LAMPS.map(() => false),
+    collectedLamps: Array.from({ length: LAMPS_PER_RUN }, () => false),
     lampEvent: -1,
     presents: createPresents(seed),
     crashTime: 0,
@@ -141,8 +165,8 @@ export function stepRun(s: Run, input: number, dt: number, boost = false) {
     const dx = s.x - oldX,
       dz = s.z - oldZ,
       lengthSquared = dx * dx + dz * dz;
-    for (let i = 0; i < LAMPS.length; i++) {
-      const lamp = LAMPS[i];
+    for (let i = 0; i < s.lampSpots.length; i++) {
+      const lamp = s.lampSpots[i];
       if (
         s.collectedLamps[i] ||
         lamp.z < oldZ - settings.pickupRadius ||
