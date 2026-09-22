@@ -1,14 +1,19 @@
 import * as THREE from "three";
 import { cone, cylinder, material, pebble, shape } from "./geometry";
-import { snowHeight, type Hazard, type Run } from "./physics";
+import { snowHeight, type Run } from "./physics";
 import { hazardPoolSizes } from "./levels";
 
 const pine = material("#326c64"),
   snow = material("#eaf4fc"),
   wood = material("#a77f61"),
   stone = material("#8396a6");
-// Pools sized for the rockiest level, so every hazard that can tumble the skier is drawn.
-const { rocks: ROCK_POOL, trees: TREE_POOL } = hazardPoolSizes();
+// Pools for the hazards within view: enough for the rockiest level outright,
+// and for the densest stretch the endless run can generate.
+const sizes = hazardPoolSizes();
+const ROCK_POOL = Math.max(48, sizes.rocks),
+  TREE_POOL = Math.max(20, sizes.trees);
+const BEHIND = 15,
+  AHEAD = 260;
 
 function rock() {
   const g = new THREE.Group();
@@ -35,11 +40,16 @@ function tree() {
   }
   return g;
 }
-/** Pooled rocks and trees for the per-run hazards inside the course. */
+/**
+ * Pooled rocks and trees for the hazards inside the course. Each frame the
+ * hazards near the skier are mapped onto the pools, so a course of any length,
+ * including the endless one, draws every hazard that can be hit.
+ */
 export class Hazards {
   private rocks: THREE.Group[] = [];
   private trees: THREE.Group[] = [];
-  private active: Hazard[] | null = null;
+  private cursor = 0;
+  private active: Run["course"] | null = null;
   constructor(scene: THREE.Scene) {
     for (let i = 0; i < ROCK_POOL + TREE_POOL; i++) {
       const g = i < ROCK_POOL ? rock() : tree();
@@ -49,26 +59,26 @@ export class Hazards {
     }
   }
   update(s: Run) {
-    if (this.active !== s.course.hazards) {
-      this.active = s.course.hazards;
-      let rocks = 0,
-        trees = 0;
-      for (const g of [...this.rocks, ...this.trees]) g.userData.used = false;
-      for (const hazard of s.course.hazards) {
-        const g =
-          hazard.kind === "rock" ? this.rocks[rocks++] : this.trees[trees++];
-        if (!g) continue;
-        g.position.set(hazard.x, snowHeight(hazard.z), hazard.z);
-        g.rotation.y = hazard.x * 0.7 + hazard.z;
-        if (hazard.kind === "rock") g.scale.setScalar(hazard.radius);
-        g.userData.z = hazard.z;
-        g.userData.used = true;
-      }
+    const hazards = s.course.hazards;
+    if (this.active !== s.course || this.cursor > hazards.length) {
+      this.active = s.course;
+      this.cursor = 0;
     }
-    for (const g of [...this.rocks, ...this.trees])
-      g.visible =
-        g.userData.used === true &&
-        g.userData.z > s.z - 15 &&
-        g.userData.z < s.z + 260;
+    // Hazards are sorted by z: back up or skip ahead to the first one still in view.
+    while (this.cursor > 0 && hazards[this.cursor - 1].z >= s.z - BEHIND) this.cursor--;
+    while (this.cursor < hazards.length && hazards[this.cursor].z < s.z - BEHIND) this.cursor++;
+    let rocks = 0,
+      trees = 0;
+    for (let i = this.cursor; i < hazards.length && hazards[i].z < s.z + AHEAD; i++) {
+      const hazard = hazards[i];
+      const g = hazard.kind === "rock" ? this.rocks[rocks++] : this.trees[trees++];
+      if (!g) continue;
+      g.position.set(hazard.x, snowHeight(hazard.z), hazard.z);
+      g.rotation.y = hazard.x * 0.7 + hazard.z;
+      if (hazard.kind === "rock") g.scale.setScalar(hazard.radius);
+      g.visible = true;
+    }
+    for (let i = rocks; i < ROCK_POOL; i++) this.rocks[i].visible = false;
+    for (let i = trees; i < TREE_POOL; i++) this.trees[i].visible = false;
   }
 }

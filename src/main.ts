@@ -1,9 +1,12 @@
 import "./style.css";
 import "./collection.css";
 import {
+  createEndlessRun,
   createRun,
   stepRun,
   lampsKept,
+  ENDLESS_STRIKES,
+  GIFTS_PER_LIFE,
   BULLSEYE_POINTS,
   COMBO_CAP,
   CRASH_PENALTY,
@@ -54,7 +57,9 @@ let elapsed = 0;
 let trace: Trace = [];
 let ghost: Trace | null = loadGhost(level, courseFingerprint(getCourse(level)));
 const paceEl = el("pace"),
-  goalEl = el("goal");
+  goalEl = el("goal"),
+  livesEl = el("lives"),
+  lifeProgressEl = el("life-progress");
 const timeEl = el("time"),
   scoreEl = el("score"),
   gatesEl = el("gate-count"),
@@ -102,6 +107,9 @@ function refreshHome() {
     : bonus
       ? `Bonus level ${level + 1}`
       : `Ski level ${level + 1}`;
+  el("endless-record").textContent = progress.endlessBest
+    ? `Endless best ${progress.endlessBest.toLocaleString()} · longest run ${progress.endlessDistance.toLocaleString()} m`
+    : "";
   el<HTMLButtonElement>("level-prev").disabled = level === 0;
   el<HTMLButtonElement>("level-next").disabled = level >= progress.unlocked;
   levelMap.refreshHome();
@@ -160,22 +168,47 @@ function updateHud() {
   }
   paceEl.hidden = !ghost;
   scoreEl.textContent = run.score.toLocaleString();
-  goalEl.textContent = run.misses
-    ? "Gate missed · no finish lamp this run"
-    : `Goal ${run.goal.toLocaleString()}`;
-  goalEl.classList.toggle("reached", !run.misses && run.score >= run.goal);
-  goalEl.classList.toggle("missed", run.misses > 0);
+  const endless = run.course.endless === true;
+  livesEl.hidden = !endless;
+  lifeProgressEl.hidden = !endless;
+  if (endless) {
+    // Three lives, drawn big: they drain on a miss or a tumble and come back
+    // for every ten presents caught.
+    const left = Math.max(0, ENDLESS_STRIKES - run.strikes);
+    livesEl.innerHTML = Array.from(
+      { length: ENDLESS_STRIKES },
+      (_, i) => `<span class="${i < left ? "life" : "life lost"}">${i < left ? "♥" : "♡"}</span>`,
+    ).join("");
+    lifeProgressEl.textContent =
+      left < ENDLESS_STRIKES
+        ? `${run.giftsTowardLife} / ${GIFTS_PER_LIFE} gifts to a life`
+        : `${run.giftsTowardLife} / ${GIFTS_PER_LIFE} gifts`;
+    goalEl.textContent = `${Math.floor(run.z).toLocaleString()} m`;
+    goalEl.classList.toggle("reached", false);
+    goalEl.classList.toggle("missed", false);
+  } else {
+    goalEl.textContent = run.misses
+      ? "Gate missed · no finish lamp this run"
+      : `Goal ${run.goal.toLocaleString()}`;
+    goalEl.classList.toggle("reached", !run.misses && run.score >= run.goal);
+    goalEl.classList.toggle("missed", run.misses > 0);
+  }
+  lampsEl.parentElement!.hidden = endless;
   lampsEl.textContent = `${run.lamps} / ${run.lampsAvailable}`;
   el("present-count").textContent = String(run.presents.collected);
-  gatesEl.textContent = `${run.hits} / ${run.course.gates.length}`;
-  progressEl.style.width = `${(run.z / run.course.finishZ) * 100}%`;
+  gatesEl.textContent = endless
+    ? `${run.hits} gates`
+    : `${run.hits} / ${run.course.gates.length}`;
+  progressEl.style.width = endless
+    ? `${((run.z % 1000) / 1000) * 100}%`
+    : `${(run.z / run.course.finishZ) * 100}%`;
   speedEl.innerHTML = `${Math.round(run.speed * 3.6)} <small>km/h</small>`;
 }
-function start() {
+function start(endless = false) {
   if (!scene) return;
   audio.unlock();
-  run = createRun(level, undefined, progress.lamps);
-  el("run-level").textContent = `Level ${level + 1}`;
+  run = endless ? createEndlessRun() : createRun(level, undefined, progress.lamps);
+  el("run-level").textContent = endless ? "Endless run" : `Level ${level + 1}`;
   finishDelay = 0;
   discoveries = 0;
   steered = false;
@@ -185,7 +218,7 @@ function start() {
   feedback.textContent = "";
   combo.textContent = "";
   trace = [];
-  ghost = loadGhost(level, courseFingerprint(run.course));
+  ghost = endless ? null : loadGhost(level, courseFingerprint(run.course));
   scene.ghostTrace = ghost;
   scene.reset();
   changeMode("playing");
@@ -198,9 +231,10 @@ function start() {
   tutorialEl.querySelector("span")!.hidden = false;
   audio.play("start");
 }
-el("play").onclick = start;
-el("again").onclick = start;
-el("restart").onclick = start;
+el("play").onclick = () => start();
+el("endless").onclick = () => start(true);
+el("again").onclick = () => start(run.course.endless === true);
+el("restart").onclick = () => start(run.course.endless === true);
 el("next-level").onclick = () => {
   selectLevel(level + 1);
   start();
@@ -284,6 +318,20 @@ el("sound").onclick = () => {
 soundIcon();
 function event(name: string) {
   if (name === "finish") {
+    if (run.course.endless) {
+      audio.play("finish");
+      newBest = progress.completeEndless(run.score, run.z);
+      newlyEarned = false;
+      refreshHome();
+      finishDelay = 1.8;
+      changeMode("celebrating");
+      tutorialEl.hidden = true;
+      feedback.textContent = `Run over · ${Math.floor(run.z).toLocaleString()} m`;
+      feedback.className = "show miss";
+      combo.textContent = "";
+      feedbackUntil = elapsed + 1.5;
+      return;
+    }
     audio.play(run.passed ? "finish" : "miss");
     // Slope lamps only join the collection when the level is passed on this run.
     for (const id of lampsKept(run)) if (progress.collect(id)) discoveries++;
@@ -316,13 +364,31 @@ function event(name: string) {
     feedbackUntil = elapsed + 1.1;
     return;
   }
+  if (name === "life") {
+    feedback.textContent = "A life back! ♥";
+    feedback.className = "show lamp";
+    combo.textContent = `${GIFTS_PER_LIFE} gifts caught`;
+    feedbackUntil = elapsed + 1.4;
+    livesEl.classList.remove("hit");
+    return;
+  }
   if (!["gate", "miss", "crash"].includes(name)) return;
   feedback.textContent =
     name === "gate"
       ? `+${100 * run.combo + run.gateBonus}${run.gateBonus ? " · BULLSEYE" : ""}`
       : name === "miss"
-        ? "Gate missed · the lamp needs every gate"
-        : `A little snow hug! −${CRASH_PENALTY}`;
+        ? run.course.endless
+          ? `Gate missed · ${Math.max(0, ENDLESS_STRIKES - run.strikes)} left`
+          : "Gate missed · the lamp needs every gate"
+        : run.course.endless
+          ? `A little snow hug! −${CRASH_PENALTY} · ${Math.max(0, ENDLESS_STRIKES - run.strikes)} left`
+          : `A little snow hug! −${CRASH_PENALTY}`;
+  if (run.course.endless && name !== "gate") {
+    // Flash the lives so a lost heart is impossible to miss.
+    livesEl.classList.remove("hit");
+    void livesEl.offsetWidth;
+    livesEl.classList.add("hit");
+  }
   feedback.className = name === "gate" ? "show" : "show miss";
   feedbackUntil = elapsed + 1.25;
   combo.textContent =
@@ -331,6 +397,10 @@ function event(name: string) {
       : "";
 }
 function finish() {
+  if (run.course.endless) {
+    finishEndless();
+    return;
+  }
   const course = run.course,
     bonus = course.lampId < 0,
     lamp = bonus ? null : LAMP_CATALOG[course.lampId];
@@ -360,6 +430,7 @@ function finish() {
       : `Goal ${run.goal.toLocaleString()} · ${(run.goal - run.score).toLocaleString()} short`;
   el("result-goal").className = run.passed ? "result-goal passed" : "result-goal";
   el("result-gates").textContent = `${run.hits} / ${course.gates.length}`;
+  el("result-best-label").textContent = "Level best";
   el("result-best").textContent = progress.best[level].toLocaleString();
   const reveal = el("result-lamp");
   reveal.hidden = bonus;
@@ -410,6 +481,36 @@ function finish() {
   el("again").textContent = run.passed ? "Ski it again" : "Try again";
   changeMode("finished");
 }
+function finishEndless() {
+  const metres = Math.floor(run.z);
+  el("finish-kicker").textContent = "Endless run over";
+  el("result-title").textContent = `${metres.toLocaleString()} metres.`;
+  el("result-level").textContent = "Endless run · no lamps, presents for bonus";
+  el("result-time").textContent = formatTime(run.time);
+  el("result-score").textContent = run.score.toLocaleString();
+  el("result-course-score").textContent = run.score.toLocaleString();
+  el("result-time-bonus").textContent = "+0";
+  el("result-par").textContent = "No par on an endless run";
+  el("result-goal").textContent =
+    `${run.hits} gates · ${run.misses} missed · ${run.crashes} tumble${run.crashes === 1 ? "" : "s"}`;
+  el("result-goal").className = "result-goal";
+  el("result-found").textContent =
+    `Best score ${progress.endlessBest.toLocaleString()} · longest run ${progress.endlessDistance.toLocaleString()} m`;
+  el("result-gates").textContent = String(run.hits);
+  el("result-best-label").textContent = "Endless best";
+  el("result-best").textContent = progress.endlessBest.toLocaleString();
+  el("result-lamp").hidden = true;
+  el("result-lamps").textContent = "No lamps on the endless run";
+  el("result-presents").textContent =
+    `${run.presents.collected} birthday presents · +${run.presents.collected * PRESENT_POINTS} points · ${Math.floor(run.presents.collected / GIFTS_PER_LIFE)} ${Math.floor(run.presents.collected / GIFTS_PER_LIFE) === 1 ? "life" : "lives"} won back`;
+  el("result-bullseyes").textContent =
+    `${run.bullseyes} bullseyes · +${(run.bullseyes * BULLSEYE_POINTS).toLocaleString()} points${run.crashes ? ` · −${(run.crashes * CRASH_PENALTY).toLocaleString()} for tumbles` : ""}`;
+  el("new-best").hidden = !newBest;
+  el("next-level").hidden = true;
+  el("result-next").hidden = true;
+  el("again").textContent = "Ski again";
+  changeMode("finished");
+}
 try {
   scene = new SkiScene(canvas);
   scene.update(run, 0, mode, 0);
@@ -437,6 +538,7 @@ try {
         recordSample(trace, run);
         if (run.lampEvent >= 0) event("lamp");
         if (run.presents.event) event("present");
+        if (run.lifeEvent) event("life");
         if (run.event) event(run.event);
         accumulator -= 1 / 120;
       }

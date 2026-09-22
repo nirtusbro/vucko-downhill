@@ -17,6 +17,9 @@ export class LevelProgress {
   cleared: boolean[] = Array(LEVEL_COUNT).fill(false);
   lamps: boolean[] = Array(LAMP_CATALOG.length).fill(false);
   best: number[] = Array(LEVEL_COUNT).fill(0);
+  /** Endless mode records: highest score and longest distance in metres. */
+  endlessBest = 0;
+  endlessDistance = 0;
   constructor() {
     try {
       const saved = JSON.parse(readValue(KEY, "null"));
@@ -36,6 +39,10 @@ export class LevelProgress {
       this.cleared.forEach((done, level) => {
         if (done) this.unlocked = Math.max(this.unlocked, Math.min(LEVEL_COUNT - 1, level + 1));
       });
+      if (Number.isSafeInteger(saved.endlessBest) && saved.endlessBest > 0)
+        this.endlessBest = saved.endlessBest;
+      if (Number.isSafeInteger(saved.endlessDistance) && saved.endlessDistance > 0)
+        this.endlessDistance = saved.endlessDistance;
       if (Array.isArray(saved.best))
         saved.best.forEach((score: unknown, level: number) => {
           if (validLevel(level) && Number.isSafeInteger(score) && (score as number) > 0)
@@ -72,6 +79,14 @@ export class LevelProgress {
     this.save();
     return isNew;
   }
+  /** Records an endless run; returns whether the score is a new record. */
+  completeEndless(score: number, distance: number) {
+    const newBest = score > this.endlessBest;
+    if (newBest) this.endlessBest = score;
+    this.endlessDistance = Math.max(this.endlessDistance, Math.floor(distance));
+    this.save();
+    return newBest;
+  }
   /** Records a finished run; only passed runs count as a level best. */
   complete(level: number, score: number, passed: boolean) {
     if (!validLevel(level)) return { newBest: false, newlyEarned: false };
@@ -96,6 +111,8 @@ export class LevelProgress {
         cleared: this.cleared.flatMap((done, level) => (done ? [level] : [])),
         lamps: this.lamps.flatMap((owned, id) => (owned ? [id] : [])),
         best: this.best,
+        endlessBest: this.endlessBest,
+        endlessDistance: this.endlessDistance,
       }),
     );
   }

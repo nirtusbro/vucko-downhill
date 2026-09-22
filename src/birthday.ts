@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { snowHeight, type Course, type Run } from "./physics";
+import { TERRAIN_PERIOD, snowHeight, type Course, type Run } from "./physics";
 import { MAX_PICKUPS } from "./levels";
 import { lampModel } from "./lamp-model";
 import { box, cylinder, material, rod, shape, sphere } from "./geometry";
@@ -270,8 +270,17 @@ export class Birthday {
         : 0.5;
     }
     this.menuDisplay.visible = mode === "menu" || mode === "how";
-    for (const g of this.decorations)
-      g.visible = g.userData.z > s.z - 45 && g.userData.z < s.z + 230;
+    for (const g of this.decorations) {
+      // Birthday corners move on by whole terrain periods once left behind.
+      const base = g.userData.z as number;
+      const k = Math.max(0, Math.ceil((s.z - 100 - base) / TERRAIN_PERIOD));
+      if (k !== (g.userData.offset ?? 0)) {
+        g.userData.offset = k;
+        g.position.set(0, -0.1 * k * TERRAIN_PERIOD, k * TERRAIN_PERIOD);
+      }
+      const at = base + k * TERRAIN_PERIOD;
+      g.visible = at > s.z - 45 && at < s.z + 230;
+    }
     for (let i = 0; i < this.lamps.length; i++) {
       const g = this.lamps[i];
       // Lamps already in the collection stay off the slope on a replay.

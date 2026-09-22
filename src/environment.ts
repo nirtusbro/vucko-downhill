@@ -1,6 +1,5 @@
 import * as THREE from "three";
-import { OBSTACLES, snowHeight } from "./physics";
-import { MAX_COURSE_LENGTH } from "./levels";
+import { OBSTACLES, TERRAIN_PERIOD, snowHeight } from "./physics";
 import {
   box,
   circle,
@@ -59,11 +58,15 @@ export class Environment {
   chunks: THREE.Group[] = [];
   mountains = new THREE.Group();
   private finishGroup = new THREE.Group();
+  /** Groups that leapfrog down the slope by whole terrain periods. */
+  private leapfrogs: THREE.Object3D[][] = [];
   constructor(scene: THREE.Scene) {
     const rand = seeded(1984);
-    for (let chunk = -1; chunk < 18; chunk++) {
+    // Chunks 0 to 19 cover one terrain period and move on as the skier passes.
+    for (let chunk = -1; chunk < 20; chunk++) {
       const group = new THREE.Group();
       group.userData.z = chunk * 90 + 45;
+      group.userData.recycles = chunk >= 0;
       scene.add(group);
       this.chunks.push(group);
       const trees: { x: number; y: number; z: number; s: number }[] = [];
@@ -239,7 +242,7 @@ export class Environment {
       if (chunk >= 0 && chunk % 4 === 0)
         this.cabin(group, (chunk % 8 === 0 ? -1 : 1) * 32, chunk * 90 + 54);
     }
-    this.skiLift(scene);
+    this.leapfrogs.push([this.skiLift(scene), this.skiLift(scene)]);
     // Distant peaks are a separate, fog-free backdrop, moving only with forward travel.
     const mountainMat = new THREE.MeshLambertMaterial({
       color: "#8cb3ce",
@@ -296,7 +299,7 @@ export class Environment {
     const glints: number[] = [];
     for (let i = 0; i < 700; i++) {
       const x = (rand() - 0.5) * 38,
-        z = rand() * (MAX_COURSE_LENGTH + 60);
+        z = rand() * TERRAIN_PERIOD;
       glints.push(
         x,
         snowHeight(z) + 0.014,
@@ -308,30 +311,31 @@ export class Environment {
     }
     const geom = new THREE.BufferGeometry();
     geom.setAttribute("position", new THREE.Float32BufferAttribute(glints, 3));
-    scene.add(
-      new THREE.LineSegments(
-        geom,
-        new THREE.LineBasicMaterial({
-          color: "#aec8dd",
-          transparent: true,
-          opacity: 0.19,
-        }),
-      ),
-    );
+    const glintMaterial = new THREE.LineBasicMaterial({
+      color: "#aec8dd",
+      transparent: true,
+      opacity: 0.19,
+    });
+    const sparkle = [0, 1].map(() => {
+      const lines = new THREE.LineSegments(geom, glintMaterial);
+      scene.add(lines);
+      return lines;
+    });
+    this.leapfrogs.push(sparkle);
   }
-  /** A chairlift climbing the far left of the slope. */
+  /** One terrain period of chairlift climbing the far left of the slope. */
   skiLift(scene: THREE.Scene) {
     const group = new THREE.Group();
     scene.add(group);
     const x = -38,
-      count = Math.ceil(MAX_COURSE_LENGTH / 90) + 2;
+      count = TERRAIN_PERIOD / 90;
     const pylons = instance(group, cylinder, stone, count * 2),
       arms = instance(group, box, stone, count);
     const cable: number[] = [];
     const chairs = instance(group, box, material("#3f5f78"), count * 3),
       seats = instance(group, box, material("#c9d6e2"), count * 3);
     for (let i = 0; i < count; i++) {
-      const z = -60 + i * 90,
+      const z = i * 90,
         y = snowHeight(z);
       for (const side of [-1, 1])
         stamp(pylons, i * 2 + side + 1 - 1 + (side > 0 ? 1 : 0), x + side * 1.4, y + 7, z, 0.22, 14, 0.22);
@@ -349,6 +353,7 @@ export class Environment {
     const geom = new THREE.BufferGeometry();
     geom.setAttribute("position", new THREE.Float32BufferAttribute(cable, 3));
     group.add(new THREE.LineSegments(geom, new THREE.LineBasicMaterial({ color: "#4b5b68" })));
+    return group;
   }
   cabin(parent: THREE.Group, x: number, z: number) {
     const g = new THREE.Group();
@@ -396,13 +401,14 @@ export class Environment {
     shape(g, box, snow, [1.2, 6.3, 1], [0.8, 0.2, 0.8]);
     shape(g, box, wood, [0, 0.23, -3], [6, 0.3, 1.5]);
   }
-  /** The finish banner moves to wherever the current course ends. */
+  /** The finish banner moves to wherever the current course ends, or hides on an endless run. */
   setFinish(z: number) {
-    this.finishGroup.position.set(0, snowHeight(z), z);
+    this.finishGroup.visible = Number.isFinite(z);
+    if (Number.isFinite(z)) this.finishGroup.position.set(0, snowHeight(z), z);
   }
   finish(scene: THREE.Scene) {
     const group = this.finishGroup;
-    this.setFinish(MAX_COURSE_LENGTH);
+    this.setFinish(Infinity);
     scene.add(group);
     const blue = material("#2e80b2"),
       white = material("#f2f9ff");
@@ -458,8 +464,26 @@ export class Environment {
     );
   }
   update(z: number) {
-    for (const chunk of this.chunks)
-      chunk.visible = chunk.userData.z > z - 80 && chunk.userData.z < z + 290;
+    for (const chunk of this.chunks) {
+      // A chunk left more than 120 m behind moves on by whole terrain periods,
+      // dropping a tenth of that in height to stay on the snow.
+      const base = chunk.userData.z as number;
+      const k = chunk.userData.recycles
+        ? Math.max(0, Math.ceil((z - 120 - base) / TERRAIN_PERIOD))
+        : 0;
+      if (k !== (chunk.userData.offset ?? 0)) {
+        chunk.userData.offset = k;
+        chunk.position.set(0, -0.1 * k * TERRAIN_PERIOD, k * TERRAIN_PERIOD);
+      }
+      const at = base + k * TERRAIN_PERIOD;
+      chunk.visible = at > z - 80 && at < z + 290;
+    }
+    const period = Math.floor((z - 300) / TERRAIN_PERIOD);
+    for (const pair of this.leapfrogs)
+      pair.forEach((object, i) => {
+        const k = period + i;
+        object.position.set(0, -0.1 * k * TERRAIN_PERIOD, k * TERRAIN_PERIOD);
+      });
     this.mountains.position.set(0, snowHeight(z), z);
   }
 }

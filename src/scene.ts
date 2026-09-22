@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { snowHeight, type Course, type Run } from "./physics";
+import { TERRAIN_PERIOD, snowHeight, type Course, type Gate, type Run } from "./physics";
 import { Vucko } from "./character";
 import { Environment } from "./environment";
 import { SnowEffects } from "./effects";
@@ -37,6 +37,8 @@ export class SkiScene {
   private look = new THREE.Vector3();
   private desired = new THREE.Vector3();
   private activeCourse: Course | null = null;
+  private builtGates = 0;
+  private groundTiles: THREE.Mesh[] = [];
   private flagTextures: THREE.CanvasTexture[];
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -54,19 +56,24 @@ export class SkiScene {
     const sun = new THREE.DirectionalLight("#fff8df", 2.5);
     sun.position.set(-50, 90, -25);
     this.scene.add(sun);
-    const ground = new THREE.PlaneGeometry(1000, 2000, 20, 240);
-    ground.rotateX(-Math.PI / 2);
-    ground.translate(0, 0, 800);
-    const pos = ground.attributes.position;
+    // Two ground tiles, each one terrain period long, leapfrog down the slope
+    // so the snow never ends however far a run goes.
+    const tile = new THREE.PlaneGeometry(1000, TERRAIN_PERIOD, 20, 216);
+    tile.rotateX(-Math.PI / 2);
+    tile.translate(0, 0, TERRAIN_PERIOD / 2);
+    const pos = tile.attributes.position;
     for (let i = 0; i < pos.count; i++)
       pos.setY(i, snowHeight(pos.getZ(i)) - 0.035);
-    ground.computeVertexNormals();
-    this.scene.add(
-      mesh(
-        ground,
-        new THREE.MeshBasicMaterial({ color: "#eff6fe", toneMapped: false }),
-      ),
-    );
+    tile.computeVertexNormals();
+    const snowMaterial = new THREE.MeshBasicMaterial({
+      color: "#eff6fe",
+      toneMapped: false,
+    });
+    for (let i = 0; i < 2; i++) {
+      const ground = mesh(tile, snowMaterial);
+      this.scene.add(ground);
+      this.groundTiles.push(ground);
+    }
     this.flagTextures = ["#e83e48", "#167bc6"].map((color) => {
       const c = document.createElement("canvas");
       c.width = 128;
@@ -126,16 +133,32 @@ export class SkiScene {
     this.resize();
   }
   /** Rebuilds the flags for a course; each level has its own layout. */
-  private buildGates(course: Course) {
-    for (const group of this.gateGroups) {
-      this.scene.remove(group);
-      group.traverse((obj) => {
-        if (obj instanceof THREE.Mesh) obj.geometry.dispose();
-      });
-    }
+  private dropGate(group: THREE.Group) {
+    this.scene.remove(group);
+    group.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) obj.geometry.dispose();
+    });
+  }
+  private clearGates() {
+    for (const group of this.gateGroups) this.dropGate(group);
     this.gateGroups = [];
+    this.builtGates = 0;
+  }
+  /** Builds flags as they come within reach and drops those left behind, so any course length works. */
+  private syncGates(course: Course, z: number) {
+    while (this.gateGroups.length && this.gateGroups[0].position.z < z - 60)
+      this.dropGate(this.gateGroups.shift()!);
+    while (
+      this.builtGates < course.gates.length &&
+      course.gates[this.builtGates].z < z + 420
+    ) {
+      const i = this.builtGates++;
+      this.buildGate(i, course.gates[i]);
+    }
+  }
+  private buildGate(i: number, gate: Gate) {
     const flagTextures = this.flagTextures;
-    for (const [i, gate] of course.gates.entries()) {
+    {
       const group = new THREE.Group();
       group.position.set(gate.x, snowHeight(gate.z), gate.z);
       const color = mat(gate.color === "red" ? "#eb474a" : "#208bd5");
@@ -187,13 +210,21 @@ export class SkiScene {
   reset() {
     this.effects.reset();
     this.birthday.reset();
+    // Flags left behind were dropped; a fresh run rebuilds them from the start.
+    this.activeCourse = null;
   }
   update(s: Run, dt: number, mode: string, elapsed: number) {
     if (this.activeCourse !== s.course) {
       this.activeCourse = s.course;
-      this.buildGates(s.course);
+      this.clearGates();
       this.environment.setFinish(s.course.finishZ);
     }
+    this.syncGates(s.course, s.z);
+    const base = Math.floor((s.z - 300) / TERRAIN_PERIOD);
+    this.groundTiles.forEach((ground, i) => {
+      const k = base + i;
+      ground.position.set(0, -0.1 * k * TERRAIN_PERIOD, k * TERRAIN_PERIOD);
+    });
     const y = snowHeight(s.z);
     this.skier.position.set(s.x, y + 0.03, s.z);
     this.skier.rotation.y = s.heading;

@@ -72,6 +72,8 @@
             </div>
           </div>
           <button id="play" class="primary"><span id="play-label">Ski level 1</span> <span>↗</span></button
+          ><button id="endless" class="endless-button">Endless <span>∞</span></button
+          ><p id="endless-record" class="endless-record"></p
           ><button id="how" class="text-button">How to play</button>
           <p class="desktop-hint">
             ← → or A / D to carve
@@ -162,6 +164,8 @@
         >
           Ⅱ
         </button>
+        <div id="lives" class="lives" aria-label="Lives left" hidden></div>
+        <div id="life-progress" class="life-progress" hidden></div>
         <div id="feedback" aria-live="polite"></div>
         <div id="combo"></div>
         <div id="tutorial">
@@ -221,7 +225,10 @@
             inside past the rock. Clear every gate and reach the goal score to
             earn the fifth and unlock the next level.<br />Twenty levels, a
             hundred lamps, and ten bonus levels beyond the summit with no lamps,
-            no presents, just rock.
+            no presents, just rock. The endless run starts slow and easy and
+            gets harder every metre: gates, rocks and trees, presents for
+            bonus points, and three misses or tumbles end it. Every ten
+            presents caught win a lost life back.
           </p>
           <p class="lamp-help">
             Now and then a present falls from the sky!<br />Follow the gold

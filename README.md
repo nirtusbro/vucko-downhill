@@ -68,6 +68,7 @@ Deploy the contents of `dist/` to any static HTTPS host. Relative asset paths su
 
   Across the ladder the course grows from 10 to 26 gates, gaps close from 55 to 30–45 metres, gate openings narrow from 8.4 to 5.5 metres (further within funnels and the corridor), and cruising speed rises from about 91 to 166 km/h (each level's authored speed times a global 1.15 scale, after the game was made 15% faster). **No two consecutive gates can be taken in a straight line:** their openings never overlap sideways, and where a design wants a same-side pair or a small step, a rock sits on the line between them (a lamp's fork rock, a line rock, a rock gate or a weave), so the skier always has to move. Every layout is checked so a relaxed steering line can still hit every gate and pickup at that level's speed with at least 0.4 m of gate margin, and a straight, un-steered line passes no level.
 - **Replays.** Lamps already in the collection are not shown on the slope again and score nothing, and the HUD counts only the lamps still to find.
+- **Endless run.** A separate mode from the home screen: a course generated on the fly from a random seed, with only gates, rocks, trees and presents. It starts slow and easy (22 m/s, 9-metre flags, 55-metre gaps) and hardens over the first three kilometres (34-metre gaps, 4.8-metre flags, flicks, same-side pairs with line rocks, rock gates, weaves, trees on the outside of turns), with cruising speed still climbing to 46 m/s by six kilometres. Three misses or tumbles end the run, and every ten presents caught win a lost life back. The HUD shows three large hearts under the top bar, which flash when one is lost, plus the count of presents toward the next life and the distance; the home screen shows the endless best score and longest run under the Endless button, and the results record both. Consecutive gates never line up unless a rock sits between them, as in the levels. The scenery, ground, glints and chairlift are built one terrain period (1,800 m) long and leapfrog down the slope, so the run can go on indefinitely.
 - **Gates.** Pass between both flags. Hits award 100 points multiplied by a combo that caps at ×8, and crossing within 1 metre of the gate's centre adds a +50 bullseye. The slope steepens so cruising speed rises 8% by the finish.
 - **Slope lamps.** Each level's four pickups sit off the racing line on the previous gate's side of their stretch and move earlier in the stretch on faster levels to leave room to cut back. They are worth no points, so a replay with some lamps already owned has the same maximum score as the first run; they are kept only by passing the level. From level 2 a fork rock sits on the direct line beside every pickup: go wide for the lamp or cut inside past the rock. From level 7 some pickups also get a guard tree on the lamp side. Lamp-free stretches hold a rock where a lamp would have been with a chance rising from 10% at level 3 to 80% at level 20.
 - **Presents.** A birthday present falls at a random location about 5.5 seconds into the run and then every 9–14 seconds. Gold rings mark their landing spots; ski close after they land for +200 points. Drops stay clear of gate stations, rocks, trees and the slope edges, and vary each run. Missed presents disappear; they never cause a crash or break your combo.
@@ -80,7 +81,8 @@ Deploy the contents of `dist/` to any static HTTPS host. Relative asset paths su
 
 | File                 | Responsibility                                                              |
 | -------------------- | --------------------------------------------------------------------------- |
-| `src/levels.ts`      | Twenty hand-placed level designs, level-to-lamp mapping and the course builder |
+| `src/levels.ts`      | Thirty hand-placed level designs, level-to-lamp mapping and the course builder |
+| `src/endless.ts`     | The endless course: generated ahead of the skier, harder with distance |
 | `src/physics.ts`     | Renderer-independent movement, collisions, scoring, goal and finish         |
 | `src/progress.ts`    | Unlocked level, the hundred-lamp collection and best score per level in storage |
 | `src/presents.ts`    | Random timed drops, landing, swept pickup scoring and bounded gift pool    |
@@ -88,7 +90,7 @@ Deploy the contents of `dist/` to any static HTTPS host. Relative asset paths su
 | `src/lamp-model.ts` | Cached 3D sculptures for all ten shape families |
 | `src/lamp-art.ts` | Matching SVG illustrations |
 | `src/collection-view.ts` | Level map listing each level's five lamps, plus the home preview |
-| `src/hazards.ts`     | Pooled rocks and trees for the hazards inside each course |
+| `src/hazards.ts`     | Pooled rocks and trees drawn for whatever hazards are in view |
 | `src/ghost.ts`       | Best-run trace sampling, pace delta and per-level storage |
 | `src/random.ts`      | Hashed seeded generator behind every level layout |
 | `src/scoring.ts` | Finish-time bonus against par |

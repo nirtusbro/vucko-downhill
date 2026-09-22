@@ -8,6 +8,7 @@ import {
   type Course,
 } from "./levels";
 import { finishTimeBonus } from "./scoring";
+import { createEndlessCourse } from "./endless";
 export type { Course, Gate, Hazard, LampSpot } from "./levels";
 
 export interface Run {
@@ -27,6 +28,14 @@ export interface Run {
   score: number;
   gateBonus: number;
   timeBonus: number;
+  /** Misses plus tumbles; an endless run ends at ENDLESS_STRIKES. */
+  strikes: number;
+  /** Presents caught since the last life won back, on an endless run. */
+  giftsTowardLife: number;
+  /** Set for the step in which a life was won back. */
+  lifeEvent: boolean;
+  /** Index of the first hazard that could still be ahead, so checks stay cheap. */
+  hazardCursor: number;
   /** Lamps picked up this run. Lamps already in the collection never appear. */
   lamps: number;
   lampsAvailable: number;
@@ -54,8 +63,20 @@ export const OBSTACLES = Array.from({ length: 32 }, (_, i) => ({
 }));
 export const clamp = (n: number, a: number, b: number) =>
   Math.max(a, Math.min(b, n));
+/**
+ * The slope drops 10 cm a metre with two gentle undulations whose periods
+ * divide TERRAIN_PERIOD, so scenery built for one period can be moved on by
+ * whole periods (and down by a tenth of that) and still sit on the snow.
+ */
+export const TERRAIN_PERIOD = 1800;
 export const snowHeight = (z: number) =>
-  -z * 0.1 + Math.sin(z * 0.022) * 0.45 + Math.sin(z * 0.064) * 0.15;
+  -z * 0.1 +
+  Math.sin((z * 2 * Math.PI) / 300) * 0.45 +
+  Math.sin((z * 2 * Math.PI) / 100) * 0.15;
+/** Misses and tumbles that end an endless run. */
+export const ENDLESS_STRIKES = 3;
+/** Presents caught on an endless run that win a life back. */
+export const GIFTS_PER_LIFE = 10;
 /** Slope lamps a finished run keeps: those picked up this run, only if the level was passed. */
 export const lampsKept = (s: Run) =>
   s.finished && s.passed
@@ -68,7 +89,13 @@ export function createRun(
   seed = levelSeed(level),
   owned: readonly boolean[] = [],
 ): Run {
-  const course = getCourse(level);
+  return runFor(getCourse(level), seed, owned);
+}
+/** A run of the endless course; every run is a fresh course from its seed. */
+export function createEndlessRun(seed = Math.floor(Math.random() * 4294967296)): Run {
+  return runFor(createEndlessCourse(seed), seed);
+}
+function runFor(course: Course, seed: number, owned: readonly boolean[] = []): Run {
   const preCollected = course.pickupLampIds.map((id) => owned[id] === true);
   const presents = createPresents(seed);
   // Bonus levels have no presents: the first drop never comes.
@@ -85,6 +112,10 @@ export function createRun(
     hits: 0,
     misses: 0,
     crashes: 0,
+    strikes: 0,
+    giftsTowardLife: 0,
+    lifeEvent: false,
+    hazardCursor: 0,
     bullseyes: 0,
     combo: 0,
     score: 0,
@@ -111,9 +142,12 @@ export function stepRun(s: Run, input: number, dt: number) {
   s.event = "";
   s.lampEvent = -1;
   s.gateBonus = 0;
+  s.lifeEvent = false;
   s.presents.event = false;
   if (s.finished || dt <= 0) return;
   const c = s.course;
+  // An endless course keeps building itself well ahead of the skier.
+  c.extend?.(s.z + 600);
   dt = Math.min(dt, 0.05);
   s.time += dt;
   s.invincible = Math.max(0, s.invincible - dt);
@@ -131,8 +165,11 @@ export function stepRun(s: Run, input: number, dt: number) {
     s.heading +=
       (clamp(input, -1, 1) * c.turnAngle - s.heading) *
       (1 - Math.exp(-STEER_RESPONSE * dt));
+    const cruise = c.speedAt
+      ? c.speedAt(s.z)
+      : c.speed * (1 + SLOPE_RAMP * clamp(s.z / c.finishZ, 0, 1));
     const targetSpeed =
-      c.speed * (1 + SLOPE_RAMP * clamp(s.z / c.finishZ, 0, 1)) -
+      cruise -
       Math.abs(s.heading) * 6 +
       Math.sin(s.z * 0.015) * 0.8;
     s.speed += (targetSpeed - s.speed) * (1 - Math.exp(-1.1 * dt));
@@ -145,16 +182,27 @@ export function stepRun(s: Run, input: number, dt: number) {
     (Math.cos(oldHeading) * oldSpeed + Math.cos(s.heading) * s.speed) *
     dt *
     0.5;
+  // Hazards are sorted by z; skip those already behind and stop past the skier.
+  while (
+    s.hazardCursor < c.hazards.length &&
+    c.hazards[s.hazardCursor].z < s.z - 4
+  )
+    s.hazardCursor++;
+  let hazardHit = false;
+  for (let i = s.hazardCursor; i < c.hazards.length && c.hazards[i].z < s.z + 4; i++)
+    if (hits(s, c.hazards[i])) {
+      hazardHit = true;
+      break;
+    }
   if (
     s.invincible === 0 &&
     s.crashTime === 0 &&
-    (Math.abs(s.x) > 20 ||
-      OBSTACLES.some((o) => hits(s, o)) ||
-      c.hazards.some((o) => hits(s, o)))
+    (Math.abs(s.x) > 20 || hazardHit || OBSTACLES.some((o) => hits(s, o)))
   ) {
     s.crashTime = 1.1;
     s.combo = 0;
     s.crashes++;
+    s.strikes++;
     s.score = Math.max(0, s.score - CRASH_PENALTY);
     s.event = "crash";
   }
@@ -190,6 +238,14 @@ export function stepRun(s: Run, input: number, dt: number) {
     }
   }
   stepPresents(s, oldX, oldZ, dt, c.gates, c.finishZ, c.hazards);
+  // On the endless run every tenth present caught wins a lost life back.
+  if (c.endless && s.presents.event && ++s.giftsTowardLife >= GIFTS_PER_LIFE) {
+    s.giftsTowardLife = 0;
+    if (s.strikes > 0) {
+      s.strikes--;
+      s.lifeEvent = true;
+    }
+  }
   while (s.nextGate < c.gates.length && s.z >= c.gates[s.nextGate].z) {
     const gate = c.gates[s.nextGate];
     const t = clamp((gate.z - oldZ) / Math.max(0.001, s.z - oldZ), 0, 1);
@@ -208,9 +264,17 @@ export function stepRun(s: Run, input: number, dt: number) {
     } else {
       s.combo = 0;
       s.misses++;
+      s.strikes++;
       if (s.event !== "crash") s.event = "miss";
     }
     s.nextGate++;
+  }
+  if (c.endless && s.strikes >= ENDLESS_STRIKES) {
+    // Three strikes: the endless run is over where it stands.
+    s.finished = true;
+    s.passed = false;
+    s.event = "finish";
+    return;
   }
   if (s.z >= c.finishZ) {
     s.z = c.finishZ;

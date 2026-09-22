@@ -93,6 +93,10 @@ export interface Course {
   name: string;
   hint: string;
   presents: boolean;
+  /** Set on the endless course, which generates itself ahead of the skier. */
+  endless?: boolean;
+  extend?: (untilZ: number) => void;
+  speedAt?: (z: number) => number;
   /** The lamp earned by passing the level. */
   lampId: number;
   /** The lamp each pickup spot holds, in slope order. */
