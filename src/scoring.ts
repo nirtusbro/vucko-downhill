@@ -1,4 +1,3 @@
-/** A finish-only bonus. Each saved second under 90 seconds is worth 50 points. */
-export function finishTimeBonus(seconds: number) {
-  return Math.max(0, Math.round((90 - Math.max(0, seconds)) * 50));
-}
+/** Finish-time bonus: points for every second under the course's par time. */
+export const finishTimeBonus = (seconds: number, par = 90, rate = 50) =>
+  Math.max(0, Math.round((par - seconds) * rate));

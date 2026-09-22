@@ -38,53 +38,40 @@
         <button
           id="collection-open"
           class="lamp-shelf collection-launch"
-          aria-label="Open lamp collection"
+          aria-label="Open the level map"
         >
           <span class="shelf-heading"
             ><strong>Ljubica’s lamps</strong
             ><span id="collection-total">0 / 100 found</span></span
           >
           <span id="shelf-preview" class="shelf-lamps"></span>
-          <span class="collection-link">View collection <span>→</span></span>
+          <span class="collection-link">All 20 levels <span>→</span></span>
         </button>
         <div class="menu-bottom">
-          <div class="course-note">
-            <span class="mountain-mark">△</span> Bjelašnica
-            <span class="dot"></span> 20 gates <span class="dot"></span> 20
-            lovely lamps
+          <div class="level-card" aria-live="polite">
+            <button id="level-prev" class="level-arrow" aria-label="Previous level">‹</button>
+            <div class="level-card-body">
+              <span class="level-eyebrow"
+                ><strong id="home-level">Level 1</strong>
+                <span id="home-level-of">of 100</span></span
+              >
+              <span id="home-lamp-art" class="home-lamp undiscovered"></span>
+              <span id="home-lamp-name" class="home-lamp-name">Ski to earn this lamp</span>
+              <span class="rarity-holder"><span id="home-lamp-rarity" class="rarity-tag">Common</span></span>
+              <span id="home-hint" class="home-hint">Wide gates and gentle turns.</span>
+              <span id="home-pickups" class="shelf-lamps home-pickups" aria-label="Lamps on this slope"></span>
+            </div>
+            <button id="level-next" class="level-arrow" aria-label="Next level">›</button>
           </div>
-          <fieldset
-            class="difficulty-selector"
-            aria-describedby="difficulty-detail"
-          >
-            <legend class="sr-only">Difficulty</legend>
-            <label
-              ><input type="radio" name="difficulty" value="easy" /><span
-                >Easy</span
-              ></label
+          <div class="difficulty-info">
+            <span id="difficulty-detail"
+              ><b id="home-gates">8</b> gates · Goal <b id="home-goal">1,800</b></span
             >
-            <label
-              ><input
-                type="radio"
-                name="difficulty"
-                value="classic"
-                checked
-              /><span>Classic</span></label
-            >
-            <label
-              ><input type="radio" name="difficulty" value="expert" /><span
-                >Expert</span
-              ></label
-            >
-          </fieldset>
-          <div class="difficulty-info" aria-live="polite">
-            <span id="difficulty-detail">Fast turns, find your rhythm</span>
             <div class="home-record">
-              <span>High score <b id="high-score-mode">Classic</b></span
-              ><strong id="home-high-score">0</strong>
+              <span>Level best</span><strong id="home-high-score">0</strong>
             </div>
           </div>
-          <button id="play" class="primary">Let’s ski <span>↗</span></button
+          <button id="play" class="primary"><span id="play-label">Ski level 1</span> <span>↗</span></button
           ><button id="how" class="text-button">How to play</button>
           <p class="desktop-hint">
             ← → to carve <span>·</span> Hold Space to boost
@@ -104,12 +91,12 @@
         <div class="collection-wrap">
           <header class="collection-header">
             <button id="collection-close" class="secondary">← Back</button
-            ><span>Your keepsakes</span>
+            ><span>Levels &amp; lamps</span>
           </header>
           <div class="collection-title-row">
             <div>
-              <p class="collection-eyebrow">Ljubica’s collection</p>
-              <h2 id="collection-title">A little more light.</h2>
+              <p class="collection-eyebrow">Ljubica’s lamps</p>
+              <h2 id="collection-title">Five lights a level.</h2>
             </div>
             <strong id="catalog-progress">0 / 100</strong>
           </div>
@@ -123,9 +110,9 @@
           <div class="collection-filters">
             <label
               >Show<select id="collection-filter">
-                <option value="all">All lamps</option>
-                <option value="found">Collected</option>
-                <option value="missing">Still to find</option>
+                <option value="all">All levels</option>
+                <option value="found">Earned</option>
+                <option value="missing">Still to earn</option>
               </select></label
             ><label
               >Rarity<select id="rarity-filter">
@@ -140,11 +127,12 @@
           </div>
           <div id="collection-grid" class="collection-grid"></div>
           <p id="collection-empty" hidden>
-            No lamps here yet. Try another filter or head back to the slope.
+            Nothing here yet. Try another filter or head back to the slope.
           </p>
           <p class="collection-note">
-            Common · Uncommon · Rare · Epic · Legendary<br />Rarer lamps appear
-            less often. Every pickup is saved, even if you leave a run early.
+            Common · Uncommon · Rare · Epic · Legendary<br />Four lamps wait
+            on each slope and are saved the moment you pick them up. Reach the
+            goal score to earn the fifth and unlock the next level.
           </p>
         </div>
       </section>
@@ -159,10 +147,11 @@
               <span id="gate-count">0 / 20</span><span>⚑</span>
             </div>
             <div class="progress-track"><i id="progress-fill"></i></div>
-            <span id="run-difficulty" class="run-difficulty">Classic</span>
+            <span id="run-level" class="run-difficulty">Level 1</span>
           </div>
           <div class="stat score">
-            <span>Score</span><strong id="score">0</strong>
+            <span>Score</span><strong id="score">0</strong
+            ><em id="goal" class="goal">Goal 1,800</em>
           </div>
         </div>
         <button
@@ -238,20 +227,21 @@
             ><i></i>
           </div>
           <p class="lamp-help">
-            Eight lamps wait off the racing line each run, with a rock on the
-            line beside each one.<br />Go wide for the lamp or cut inside past
-            the rock. Rarer lamps sit farther out, behind a tree, and pay more:
-            +50 up to +250. Discover 100 designs across five rarities in your
-            collection.
+            Every level holds five lamps. Four wait off the racing line, each
+            with a rock on the line beside it: go wide for the lamp or cut
+            inside past the rock. Reach the goal score to earn the fifth and
+            unlock the next level.<br />Twenty levels, a hundred lamps.
           </p>
           <p class="lamp-help">
             Now and then a present falls from the sky!<br />Follow the gold
             ring and collect it after it lands for +200 points.
           </p>
           <p class="lamp-help">
-            Rocks hide in some open stretches too, and a tumble costs speed and
-            your combo.<br />Once you have a best run, a pale Vučko races it
-            beside you and the timer shows how far ahead or behind you are.
+            Levels get faster and tighter, with more rocks and trees, and a
+            tumble costs speed and your combo. Lamps you pick up are saved at
+            once, even if you leave the run early.<br />Once you have a best run on
+            a level, a pale Vučko races it beside you and the timer shows how
+            far ahead or behind you are.
           </p>
           <p class="lamp-help">
             Finish faster for more points: +50 for every second under 90
@@ -271,15 +261,24 @@
           <p id="finish-kicker">
             A little more light for your birthday, Ljubica.
           </p>
-          <h2>Beautiful run.</h2>
-          <span id="result-difficulty" class="result-difficulty">Classic</span>
+          <h2 id="result-title">Beautiful run.</h2>
+          <span id="result-level" class="result-difficulty">Level 1 of 100</span>
           <div id="new-best" hidden>New personal best</div>
+          <div id="result-lamp" class="result-lamp undiscovered">
+            <span id="result-lamp-art" class="result-lamp-art"></span>
+            <span class="result-lamp-text"
+              ><strong id="result-lamp-name">Pass the level to earn this lamp</strong
+              ><span id="result-lamp-rarity" class="rarity-tag">Common</span></span
+            >
+          </div>
+          <p id="result-goal" class="result-goal">Goal 1,800</p>
+          <p id="result-found" class="result-discoveries"></p>
           <div class="results">
             <div><span>Time</span><strong id="result-time"></strong></div>
             <div><span>Score</span><strong id="result-score"></strong></div>
             <div><span>Gates hit</span><strong id="result-gates"></strong></div>
             <div>
-              <span id="result-best-label">Classic best</span
+              <span id="result-best-label">Level best</span
               ><strong id="result-best"></strong>
             </div>
           </div>
@@ -288,11 +287,10 @@
               >Gates &amp; pickups
               <strong id="result-course-score">0</strong></span
             ><span>Time bonus <strong id="result-time-bonus">+0</strong></span
-            ><small>50 points per second under 90 seconds</small>
+            ><small id="result-par">50 points per second under par</small>
           </div>
-          <p id="result-discoveries" class="result-discoveries"></p>
           <button id="finish-collection" class="text-button">
-            See your lamps →
+            All levels →
           </button>
           <div class="birthday-collection">
             <svg viewBox="0 0 28 30" aria-hidden="true">
@@ -302,7 +300,8 @@
             ><span id="result-presents">0 birthday presents · +0 points</span
             ><span id="result-bullseyes">0 bullseyes · +0 points</span>
           </div>
-          <button id="again" class="primary">Play again <span>↗</span></button
+          <button id="next-level" class="primary">Next level <span>↗</span></button
+          ><button id="again" class="secondary">Ski it again</button
           ><button id="finish-menu" class="text-button">Main menu</button>
         </div>
       </section>

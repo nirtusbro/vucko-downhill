@@ -3,28 +3,29 @@ import {
   createRun,
   stepRun,
   lampScore,
-  GATES,
-  LAMPS_PER_RUN,
-  FINISH_Z,
   OBSTACLES,
-  clamp,
   type Run,
 } from "../src/physics";
+import { drive } from "./helpers";
 
 function advance(run: Run, seconds: number, input = 0, dt = 1 / 60) {
   for (let i = 0; i < Math.round(seconds / dt); i++) stepRun(run, input, dt);
   return run;
 }
+const clear = (run: Run) => {
+  run.course = { ...run.course, hazards: [] };
+  return run;
+};
 
 describe("skiing", () => {
   it("accelerates downhill and travels through the world", () => {
-    const s = advance(createRun(), 3);
+    const s = advance(clear(createRun(0)), 3);
     expect(s.z).toBeGreaterThan(25);
     expect(s.speed).toBeGreaterThan(12);
     expect(s.x).toBe(0);
   });
   it("steering changes heading progressively, not character position instantly", () => {
-    const s = createRun();
+    const s = clear(createRun(0));
     stepRun(s, 1, 1 / 60);
     expect(s.heading).toBeGreaterThan(0);
     expect(s.heading).toBeLessThan(0.1);
@@ -33,24 +34,25 @@ describe("skiing", () => {
     expect(s.x).toBeGreaterThan(2);
   });
   it("hard carving costs speed and releasing returns to downhill", () => {
-    const straight = advance(createRun(), 2);
-    const turn = advance(createRun(), 2, 0.7);
+    const straight = advance(clear(createRun(0)), 2);
+    const turn = advance(clear(createRun(0)), 2, 0.7);
     expect(turn.speed).toBeLessThan(straight.speed);
     const heading = turn.heading;
     advance(turn, 1, 0);
     expect(Math.abs(turn.heading)).toBeLessThan(heading * 0.25);
   });
   it("has comparable trajectories at 30 and 120 simulation steps per second", () => {
-    const slow = advance(createRun(), 1.5, 0.25, 1 / 30);
-    const fast = advance(createRun(), 1.5, 0.25, 1 / 120);
+    const slow = advance(clear(createRun(0)), 1.5, 0.25, 1 / 30);
+    const fast = advance(clear(createRun(0)), 1.5, 0.25, 1 / 120);
     expect(Math.abs(slow.z - fast.z)).toBeLessThan(0.3);
     expect(Math.abs(slow.x - fast.x)).toBeLessThan(0.15);
   });
   it("awards each crossed gate only once and builds combo", () => {
-    const s = createRun();
+    const s = createRun(0);
+    const gates = s.course.gates;
     for (let i = 0; i < 4; i++) {
-      s.x = GATES[i].x;
-      s.z = GATES[i].z - 0.1;
+      s.x = gates[i].x;
+      s.z = gates[i].z - 0.1;
       s.speed = 18;
       s.heading = 0;
       stepRun(s, 0, 1 / 60);
@@ -63,10 +65,11 @@ describe("skiing", () => {
     expect(s.score).toBe(1200);
   });
   it("missing a gate breaks combo but the run continues", () => {
-    const s = createRun();
+    const s = createRun(0);
+    const gate = s.course.gates[0];
     s.combo = 3;
-    s.x = GATES[0].x + 8;
-    s.z = GATES[0].z - 0.1;
+    s.x = gate.x + 8;
+    s.z = gate.z - 0.1;
     s.speed = 18;
     stepRun(s, 0, 1 / 60);
     expect(s.combo).toBe(0);
@@ -74,7 +77,7 @@ describe("skiing", () => {
     expect(s.finished).toBe(false);
   });
   it("automatically recovers after a boundary crash", () => {
-    const s = createRun();
+    const s = createRun(0);
     s.x = 22;
     stepRun(s, 0, 1 / 60);
     expect(s.crashTime).toBeGreaterThan(0);
@@ -83,23 +86,34 @@ describe("skiing", () => {
     expect(Math.abs(s.x)).toBeLessThan(18);
     expect(s.speed).toBeGreaterThan(4);
   });
-  it("finishes and freezes the timer", () => {
-    const s = createRun();
-    s.z = FINISH_Z - 0.1;
+  it("finishes, freezes the timer and judges the goal", () => {
+    const s = createRun(0);
+    s.nextGate = s.course.gates.length;
+    s.z = s.course.finishZ - 0.1;
     s.speed = 18;
+    s.time = s.course.parTime + 5;
     stepRun(s, 0, 1 / 60);
     expect(s.finished).toBe(true);
+    expect(s.passed).toBe(false);
+    expect(s.timeBonus).toBe(0);
     const time = s.time;
     advance(s, 1);
     expect(s.time).toBe(time);
+    const winner = createRun(0);
+    winner.nextGate = winner.course.gates.length;
+    winner.z = winner.course.finishZ - 0.1;
+    winner.score = winner.course.goal;
+    winner.time = winner.course.parTime + 5;
+    stepRun(winner, 0, 1 / 60);
+    expect(winner.passed).toBe(true);
   });
-  it("colliding with a course rock triggers a recoverable tumble", () => {
+  it("colliding with an edge rock triggers a recoverable tumble", () => {
     const rock = OBSTACLES.find((o) => o.kind === "rock")!;
-    const s = createRun();
+    const s = createRun(0);
     s.x = rock.x;
     s.z = rock.z - 0.1;
     s.speed = 15;
-    s.nextGate = 1;
+    s.nextGate = s.course.gates.findIndex((g) => g.z > rock.z);
     stepRun(s, 0, 1 / 60);
     expect(s.event).toBe("crash");
     advance(s, 2);
@@ -107,48 +121,37 @@ describe("skiing", () => {
     expect(s.finished).toBe(false);
   });
   it("allows every gate to be reached by steering within the normal input range", () => {
-    const s = createRun("classic", 42);
-    const targets = [...GATES, ...s.lampSpots].sort((a, b) => a.z - b.z);
-    let nextTarget = 0;
-    for (let tick = 0; tick < 120 * 180 && !s.finished; tick++) {
-      while (nextTarget < targets.length && s.z >= targets[nextTarget].z)
-        nextTarget++;
-      const target = targets[nextTarget]?.x ?? 0;
-      stepRun(
-        s,
-        clamp((target - s.x) * 0.12 - s.heading * 0.8, -1, 1),
-        1 / 120,
-      );
+    for (const level of [0, 5, 10, 15, 19]) {
+      const s = createRun(level, 42);
+      const { crashes } = drive(s);
+      expect(s.finished).toBe(true);
+      expect(crashes).toBe(0);
+      expect(s.hits).toBe(s.course.gates.length);
+      expect(s.lamps).toBe(s.course.lampSpots.length);
+      expect(
+        s.score - s.timeBonus - s.presents.collected * 200 - s.bullseyes * 50 - lampScore(s),
+      ).toBe(s.course.maxGateScore);
+      expect(s.time).toBeGreaterThan(15);
+      expect(s.time).toBeLessThan(45);
     }
-    expect(s.finished).toBe(true);
-    expect(s.hits).toBe(20);
-    expect(s.lamps).toBe(LAMPS_PER_RUN);
-    expect(
-      s.score -
-        s.timeBonus -
-        s.presents.collected * 200 -
-        s.bullseyes * 50 -
-        lampScore(s),
-    ).toBe(13200);
-    expect(s.time).toBeGreaterThan(28);
-    expect(s.time).toBeLessThan(45);
   });
   it("does not punish missed gates with a forced restart", () => {
-    const s = advance(createRun(), 110);
+    const s = advance(createRun(12), 110);
     expect(s.finished).toBe(true);
-    expect(s.hits).toBeLessThan(20);
-    expect(s.time).toBeGreaterThan(28);
+    expect(s.hits).toBeLessThan(s.course.gates.length);
+    expect(s.time).toBeGreaterThan(20);
     expect(s.time).toBeLessThan(90);
   });
   it("keeps collision feedback when a tumble also crosses a missed gate", () => {
-    const s = createRun();
+    const s = createRun(0);
+    const gate = s.course.gates[3];
     s.x = 22;
-    s.z = GATES[8].z - 0.1;
-    s.nextGate = 8;
+    s.z = gate.z - 0.1;
+    s.nextGate = 3;
     s.speed = 18;
     stepRun(s, 0, 1 / 60);
     expect(s.crashTime).toBeGreaterThan(0);
-    expect(s.nextGate).toBe(9);
+    expect(s.nextGate).toBe(4);
     expect(s.event).toBe("crash");
   });
 });

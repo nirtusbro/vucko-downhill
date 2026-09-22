@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { FINISH_Z, LAMPS_PER_RUN, snowHeight, type Run } from "./physics";
+import { snowHeight, type Course, type Run } from "./physics";
+import { MAX_PICKUPS } from "./levels";
 import { lampModel } from "./lamp-model";
 import { box, cylinder, material, rod, shape, sphere } from "./geometry";
 import { PRESENT_FALL_TIME, PRESENT_POOL_SIZE } from "./presents";
@@ -105,13 +106,11 @@ function bunting(parent: THREE.Object3D, x: number, z: number) {
 export class Birthday {
   private lamps: THREE.Group[] = [];
   private decorations: THREE.Group[] = [];
-  private pickupTimes = Array.from({ length: LAMPS_PER_RUN }, () => -10);
-  private previousCollected = Array.from(
-    { length: LAMPS_PER_RUN },
-    () => false,
-  );
+  private pickupTimes = Array.from({ length: MAX_PICKUPS }, () => -10);
+  private previousCollected = Array.from({ length: MAX_PICKUPS }, () => false);
   private menuDisplay = new THREE.Group();
-  private activeLampIds: number[] | null = null;
+  private displayLamp: THREE.Group;
+  private activeCourse: Course | null = null;
   private fallingGifts: { model: THREE.Group; marker: THREE.Mesh }[] = [];
   constructor(scene: THREE.Scene) {
     const ring = new THREE.RingGeometry(1.8, 2.15, 32);
@@ -147,7 +146,7 @@ export class Birthday {
       depthWrite: false,
       toneMapped: false,
     });
-    for (let i = 0; i < LAMPS_PER_RUN; i++) {
+    for (let i = 0; i < MAX_PICKUPS; i++) {
       const g = new THREE.Group();
       const lamp = lampModel(i % 4);
       lamp.scale.setScalar(1.22);
@@ -166,11 +165,7 @@ export class Birthday {
       this.lamps.push(g);
     }
     // A few small birthday corners sit outside the racing line.
-    for (const [i, z] of [
-      36,
-      ...[0.2, 0.4, 0.6, 0.8].map((t) => FINISH_Z * t),
-      FINISH_Z + 10,
-    ].entries()) {
+    for (const [i, z] of [36, 200, 400, 600, 800, 1000, 1100].entries()) {
       const group = new THREE.Group(),
         x = (i % 2 ? 1 : -1) * 23;
       gift(group, x, z, 1.15, palettes[i % 4]);
@@ -203,9 +198,9 @@ export class Birthday {
         0.06,
         brass,
       );
-    const display = lampModel(0);
-    display.position.set(x, y + 1.01, z);
-    this.menuDisplay.add(display);
+    this.displayLamp = lampModel(0);
+    this.displayLamp.position.set(x, y + 1.01, z);
+    this.menuDisplay.add(this.displayLamp);
     gift(this.menuDisplay, x + 0.6, z + 1.3, 0.62, lilac);
     gift(this.menuDisplay, x - 1, z + 0.3, 0.48, mint);
     scene.add(this.menuDisplay);
@@ -215,14 +210,24 @@ export class Birthday {
     this.pickupTimes.fill(-10);
   }
   update(s: Run, time: number, mode: string) {
-    if (this.activeLampIds !== s.lampIds) {
-      this.activeLampIds = s.lampIds;
+    if (this.activeCourse !== s.course) {
+      this.activeCourse = s.course;
+      // Each pickup spot holds one of the level's own collectible lamps.
       this.lamps.forEach((group, i) => {
-        const spot = s.lampSpots[i];
+        const spot = s.course.lampSpots[i];
+        group.userData.used = !!spot;
+        if (!spot) return;
         group.position.set(spot.x, snowHeight(spot.z), spot.z);
         group.remove(group.getObjectByName("lamp")!);
-        group.add(lampModel(s.lampIds[i]));
+        const lamp = lampModel(s.course.pickupLampIds[i]);
+        lamp.name = "lamp";
+        group.add(lamp);
       });
+      const display = lampModel(s.course.lampId);
+      display.position.copy(this.displayLamp.position);
+      this.menuDisplay.remove(this.displayLamp);
+      this.menuDisplay.add(display);
+      this.displayLamp = display;
     }
     for (const [i, visual] of this.fallingGifts.entries()) {
       const present = s.presents.items[i];
@@ -267,15 +272,20 @@ export class Birthday {
     for (const g of this.decorations)
       g.visible = g.userData.z > s.z - 45 && g.userData.z < s.z + 230;
     for (let i = 0; i < this.lamps.length; i++) {
-      const g = this.lamps[i],
-        lamp = g.getObjectByName("lamp")!;
+      const g = this.lamps[i];
+      // Lamps already in the collection stay off the slope on a replay.
+      if (!g.userData.used || s.preCollected[i]) {
+        g.visible = false;
+        continue;
+      }
+      const lamp = g.getObjectByName("lamp")!;
       if (s.collectedLamps[i] && !this.previousCollected[i])
         this.pickupTimes[i] = time;
       this.previousCollected[i] = s.collectedLamps[i];
       const age = time - this.pickupTimes[i];
       g.visible =
-        s.lampSpots[i].z > s.z - 12 &&
-        s.lampSpots[i].z < s.z + 230 &&
+        s.course.lampSpots[i].z > s.z - 12 &&
+        s.course.lampSpots[i].z < s.z + 230 &&
         (!s.collectedLamps[i] || age < 0.42);
       if (!g.visible) continue;
       lamp.rotation.y = Math.sin(time * 0.8 + i) * 0.3;

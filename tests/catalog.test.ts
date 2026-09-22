@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { LAMP_CATALOG, LAMPS_PER_RUN, rollLamps } from "../src/lamp-catalog";
-import { createRun } from "../src/physics";
+import { LAMP_CATALOG, lampPoints } from "../src/lamp-catalog";
+import { levelLamps } from "../src/levels";
 describe("100-lamp catalogue", () => {
   it("has 100 unique designs and names across five rarities", () => {
     expect(LAMP_CATALOG).toHaveLength(100);
@@ -12,33 +12,11 @@ describe("100-lamp catalogue", () => {
         .size,
     ).toBe(100);
   });
-  it("rolls one run of distinct lamps reproducibly, changing between runs", () => {
-    const lamps = rollLamps(42);
-    expect(lamps).toHaveLength(LAMPS_PER_RUN);
-    expect(new Set(lamps).size).toBe(LAMPS_PER_RUN);
-    expect(rollLamps(42, [], 20)).toHaveLength(20);
-    expect(lamps).toEqual(rollLamps(42));
-    expect(lamps).not.toEqual(rollLamps(43));
-    expect(createRun("classic", 42).lampIds).toEqual(lamps);
-  });
-  it("makes all 100 obtainable while keeping legendary lamps rarer", () => {
-    const counts = Array(100).fill(0);
-    for (let seed = 1; seed <= 1000; seed++)
-      for (const id of rollLamps(seed)) counts[id]++;
-    expect(counts.every((count) => count > 0)).toBe(true);
-    expect(counts.slice(0, 40).reduce((a, b) => a + b) / 40).toBeGreaterThan(
-      counts[99] * 2,
-    );
-  });
-  it("favors missing designs", () => {
-    const owned = Array(100).fill(1);
-    owned[8] = 0;
-    let favored = 0,
-      baseline = 0;
-    for (let seed = 1; seed <= 500; seed++) {
-      if (rollLamps(seed, owned).includes(8)) favored++;
-      if (rollLamps(seed).includes(8)) baseline++;
-    }
-    expect(favored).toBeGreaterThan(baseline * 1.3);
+  it("ties five lamps to each level, climbing from Common to Legendary", () => {
+    expect(levelLamps(0)).toEqual({ pickups: [0, 1, 2, 3], finish: 4 });
+    expect(levelLamps(19)).toEqual({ pickups: [95, 96, 97, 98], finish: 99 });
+    expect(LAMP_CATALOG[levelLamps(0).finish].rarity).toBe("Common");
+    expect(LAMP_CATALOG[levelLamps(19).finish].rarity).toBe("Legendary");
+    expect(lampPoints(99)).toBeGreaterThan(lampPoints(0));
   });
 });

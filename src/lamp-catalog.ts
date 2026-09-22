@@ -79,15 +79,6 @@ export const LAMP_CATALOG: LampDesign[] = Array.from(
     };
   },
 );
-const weights: Record<Rarity, number> = {
-  Common: 55 / 40,
-  Uncommon: 25 / 30,
-  Rare: 14 / 20,
-  Epic: 5 / 8,
-  Legendary: 1 / 2,
-};
-/** Lamps placed on the slope in one run. */
-export const LAMPS_PER_RUN = 8;
 /** Pickup points by rarity: rarer lamps sit farther off the line and pay more. */
 export const LAMP_POINTS: Record<Rarity, number> = {
   Common: 50,
@@ -107,34 +98,4 @@ export const LAMP_DETOUR_EXTRA: Record<Rarity, number> = {
 export const lampPoints = (id: number) => LAMP_POINTS[LAMP_CATALOG[id].rarity];
 export const lampDetourExtra = (id: number) =>
   LAMP_DETOUR_EXTRA[LAMP_CATALOG[id].rarity];
-/** Weighted sampling without replacement: distinct designs for one run. */
-export function rollLamps(
-  seed: number,
-  counts: readonly number[] = [],
-  count = LAMPS_PER_RUN,
-) {
-  let state = (seed ^ 0x9e3779b9) >>> 0;
-  const random = () => {
-    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
-    return state / 4294967296;
-  };
-  const candidates = LAMP_CATALOG.map((lamp) => ({
-    id: lamp.id,
-    weight: weights[lamp.rarity] * (counts[lamp.id] ? 1 : 3),
-  }));
-  const result: number[] = [];
-  while (result.length < count) {
-    let roll =
-      random() * candidates.reduce((sum, entry) => sum + entry.weight, 0);
-    let index = candidates.length - 1;
-    for (let i = 0; i < candidates.length; i++) {
-      roll -= candidates[i].weight;
-      if (roll < 0) {
-        index = i;
-        break;
-      }
-    }
-    result.push(candidates.splice(index, 1)[0].id);
-  }
-  return result;
-}
+

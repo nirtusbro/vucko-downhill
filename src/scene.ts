@@ -1,12 +1,11 @@
 import * as THREE from "three";
-import { GATES, snowHeight, type Run } from "./physics";
+import { snowHeight, type Course, type Run } from "./physics";
 import { Vucko } from "./character";
 import { Environment } from "./environment";
 import { SnowEffects } from "./effects";
 import { Birthday } from "./birthday";
 import { Hazards } from "./hazards";
 import { ghostPose, type Trace } from "./ghost";
-import { gateWidth, type DifficultyId } from "./difficulty";
 
 export const mat = (color: THREE.ColorRepresentation) =>
   new THREE.MeshLambertMaterial({ color });
@@ -37,7 +36,8 @@ export class SkiScene {
   gateGroups: THREE.Group[] = [];
   private look = new THREE.Vector3();
   private desired = new THREE.Vector3();
-  private activeDifficulty: DifficultyId | null = null;
+  private activeCourse: Course | null = null;
+  private flagTextures: THREE.CanvasTexture[];
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -67,7 +67,7 @@ export class SkiScene {
         new THREE.MeshBasicMaterial({ color: "#eff6fe", toneMapped: false }),
       ),
     );
-    const flagTextures = ["#e83e48", "#167bc6"].map((color) => {
+    this.flagTextures = ["#e83e48", "#167bc6"].map((color) => {
       const c = document.createElement("canvas");
       c.width = 128;
       c.height = 128;
@@ -93,7 +93,49 @@ export class SkiScene {
       t.colorSpace = THREE.SRGBColorSpace;
       return t;
     });
-    for (const [i, gate] of GATES.entries()) {
+    this.scene.add(this.skier);
+    this.shadow = mesh(
+      new THREE.CircleGeometry(1, 24),
+      new THREE.MeshBasicMaterial({
+        color: "#6586b3",
+        transparent: true,
+        opacity: 0.22,
+        depthWrite: false,
+      }),
+    );
+    this.shadow.rotation.x = -Math.PI / 2 + 0.1;
+    this.shadow.scale.set(1.1, 1.7, 1);
+    this.scene.add(this.shadow);
+    this.environment = new Environment(this.scene);
+    this.effects = new SnowEffects(this.scene);
+    this.birthday = new Birthday(this.scene);
+    this.hazards = new Hazards(this.scene);
+    // A pale copy of Vučko replays the best run for this level.
+    this.ghost.root.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) {
+        const m = (obj.material as THREE.Material).clone();
+        m.transparent = true;
+        m.opacity = 0.3;
+        m.depthWrite = false;
+        obj.material = m;
+      }
+    });
+    this.ghost.root.visible = false;
+    this.scene.add(this.ghost.root);
+    window.addEventListener("resize", () => this.resize());
+    this.resize();
+  }
+  /** Rebuilds the flags for a course; each level has its own layout. */
+  private buildGates(course: Course) {
+    for (const group of this.gateGroups) {
+      this.scene.remove(group);
+      group.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) obj.geometry.dispose();
+      });
+    }
+    this.gateGroups = [];
+    const flagTextures = this.flagTextures;
+    for (const [i, gate] of course.gates.entries()) {
       const group = new THREE.Group();
       group.position.set(gate.x, snowHeight(gate.z), gate.z);
       const color = mat(gate.color === "red" ? "#eb474a" : "#208bd5");
@@ -135,37 +177,6 @@ export class SkiScene {
       this.scene.add(group);
       this.gateGroups.push(group);
     }
-    this.scene.add(this.skier);
-    this.shadow = mesh(
-      new THREE.CircleGeometry(1, 24),
-      new THREE.MeshBasicMaterial({
-        color: "#6586b3",
-        transparent: true,
-        opacity: 0.22,
-        depthWrite: false,
-      }),
-    );
-    this.shadow.rotation.x = -Math.PI / 2 + 0.1;
-    this.shadow.scale.set(1.1, 1.7, 1);
-    this.scene.add(this.shadow);
-    this.environment = new Environment(this.scene);
-    this.effects = new SnowEffects(this.scene);
-    this.birthday = new Birthday(this.scene);
-    this.hazards = new Hazards(this.scene);
-    // A pale copy of Vučko replays the best run for this difficulty.
-    this.ghost.root.traverse((obj) => {
-      if (obj instanceof THREE.Mesh) {
-        const m = (obj.material as THREE.Material).clone();
-        m.transparent = true;
-        m.opacity = 0.3;
-        m.depthWrite = false;
-        obj.material = m;
-      }
-    });
-    this.ghost.root.visible = false;
-    this.scene.add(this.ghost.root);
-    window.addEventListener("resize", () => this.resize());
-    this.resize();
   }
   resize() {
     this.camera.aspect = innerWidth / innerHeight;
@@ -178,18 +189,10 @@ export class SkiScene {
     this.birthday.reset();
   }
   update(s: Run, dt: number, mode: string, elapsed: number) {
-    if (this.activeDifficulty !== s.difficulty) {
-      this.activeDifficulty = s.difficulty;
-      this.gateGroups.forEach((group, i) => {
-        const width = gateWidth(GATES[i].width, s.difficulty);
-        for (const child of group.children) {
-          if (child.position.x === 0) child.scale.x = width / GATES[i].width;
-          else
-            child.position.x =
-              Math.sign(child.position.x) *
-              (width / 2 - (child.userData.flag ? 0.5 : 0));
-        }
-      });
+    if (this.activeCourse !== s.course) {
+      this.activeCourse = s.course;
+      this.buildGates(s.course);
+      this.environment.setFinish(s.course.finishZ);
     }
     const y = snowHeight(s.z);
     this.skier.position.set(s.x, y + 0.03, s.z);

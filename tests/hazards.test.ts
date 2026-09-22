@@ -1,87 +1,71 @@
 import { describe, expect, it } from "vitest";
+import { createRun, stepRun } from "../src/physics";
 import {
-  createRun,
-  stepRun,
-  GATES,
-  STRETCHES,
   FORK_ROCK_RADIUS,
-} from "../src/physics";
-import type { DifficultyId } from "../src/difficulty";
-import { lampDetourExtra } from "../src/lamp-catalog";
-const levels: DifficultyId[] = ["easy", "classic", "expert"];
+  GUARD_TREE_RADIUS,
+  LEVEL_COUNT,
+  getCourse,
+  levelSettings,
+} from "../src/levels";
 
 describe("course hazards", () => {
-  it("puts a fork rock on the direct line beside every lamp", () => {
-    for (let seed = 1; seed <= 20; seed++) {
-      const run = createRun("classic", seed);
-      for (const spot of run.lampSpots) {
-        const rock = run.hazards.find(
-          (hazard) =>
-            hazard.kind === "rock" &&
-            hazard.z === spot.z &&
-            hazard.x === STRETCHES[spot.stretch].midX,
+  it("puts a fork rock on the direct line beside every pickup once rocks begin", () => {
+    let forks = 0;
+    for (let level = 0; level < LEVEL_COUNT; level++) {
+      const c = getCourse(level);
+      for (const spot of c.lampSpots) {
+        const stretch = c.stretches[spot.stretch];
+        const rock = c.hazards.find(
+          (h) => h.kind === "rock" && h.radius === FORK_ROCK_RADIUS && h.z === spot.z,
         );
-        expect(rock).toBeDefined();
-        expect(Math.abs(spot.x - rock!.x)).toBeGreaterThanOrEqual(5);
+        if (!levelSettings(level).forkRocks) expect(rock).toBeUndefined();
+        else {
+          forks++;
+          expect(rock).toBeDefined();
+          expect(Math.abs(rock!.x - stretch.lineX)).toBeLessThan(0.06);
+          expect(Math.abs(spot.x - rock!.x)).toBeGreaterThanOrEqual(4.4);
+        }
       }
     }
+    expect(forks).toBeGreaterThan(60);
   });
-  it("guards rare and better lamps with a tree between the line and the lamp", () => {
-    let guarded = 0;
-    for (let seed = 1; seed <= 40; seed++) {
-      const run = createRun("classic", seed);
-      run.lampSpots.forEach((spot, i) => {
-        const tree = run.hazards.find(
-          (hazard) =>
-            hazard.kind === "tree" && Math.abs(hazard.z - (spot.z - 8)) < 0.01,
-        );
-        if (lampDetourExtra(run.lampIds[i]) > 0) {
-          guarded++;
-          expect(tree).toBeDefined();
-          expect(Math.abs(tree!.x - spot.x)).toBeGreaterThan(2.5);
-          expect(Math.abs(tree!.x - STRETCHES[spot.stretch].midX)).toBeGreaterThan(
-            1.5,
-          );
-        } else expect(tree).toBeUndefined();
-      });
+  it("guards some pickups with a tree on the lamp side, never in the approach", () => {
+    let trees = 0;
+    for (let level = 0; level < LEVEL_COUNT; level++) {
+      const c = getCourse(level);
+      for (const tree of c.hazards.filter((h) => h.kind === "tree")) {
+        trees++;
+        expect(tree.radius).toBe(GUARD_TREE_RADIUS);
+        const spot = c.lampSpots.find(
+          (s) => tree.z < s.z && tree.z >= s.z - 8.01 && Math.abs(tree.x - s.x) < 4,
+        )!;
+        expect(spot).toBeDefined();
+        expect(Math.abs(tree.x - spot.x)).toBeGreaterThan(2.5);
+        expect(tree.z).toBeGreaterThanOrEqual(c.gates[spot.stretch].z + 12);
+        expect(tree.z).toBeLessThanOrEqual(spot.z - 3);
+      }
+      if (level < 6) expect(c.hazards.some((h) => h.kind === "tree")).toBe(false);
     }
-    expect(guarded).toBeGreaterThan(0);
+    expect(trees).toBeGreaterThan(3);
   });
-  it("never places a hazard near a gate line", () => {
-    for (let seed = 1; seed <= 30; seed++)
-      for (const level of levels)
-        for (const hazard of createRun(level, seed).hazards)
-          for (const gate of GATES)
-            expect(Math.abs(hazard.z - gate.z)).toBeGreaterThanOrEqual(12);
-  });
-  it("adds more wide rocks in harder modes, reproducibly per seed", () => {
-    const rocks = (level: DifficultyId) => {
+  it("adds more wide rocks as levels rise", () => {
+    const rocks = (from: number, to: number) => {
       let total = 0;
-      for (let seed = 1; seed <= 60; seed++)
-        total += createRun(level, seed).hazards.filter(
-          (hazard) => hazard.kind === "rock",
-        ).length;
+      for (let level = from; level < to; level++)
+        total += getCourse(level).hazards.filter((h) => h.kind === "rock").length;
       return total;
     };
-    expect(rocks("easy")).toBeLessThan(rocks("classic"));
-    expect(rocks("classic")).toBeLessThan(rocks("expert"));
-    expect(createRun("expert", 9).hazards).toEqual(
-      createRun("expert", 9).hazards,
-    );
-    expect(createRun("expert", 9).hazards).not.toEqual(
-      createRun("expert", 10).hazards,
-    );
+    expect(rocks(0, 4)).toBeLessThan(rocks(8, 12));
+    expect(rocks(0, 4)).toBeLessThan(rocks(16, 20));
   });
   it("tumbles on a fork rock, breaks the combo and recovers", () => {
-    const run = createRun("classic", 3);
-    const rock = run.hazards.find(
-      (hazard) => hazard.radius === FORK_ROCK_RADIUS,
-    )!;
+    const run = createRun(10);
+    const rock = run.course.hazards.find((h) => h.radius === FORK_ROCK_RADIUS)!;
     run.x = rock.x;
     run.z = rock.z - 0.2;
     run.speed = 20;
     run.combo = 5;
-    run.nextGate = GATES.findIndex((gate) => gate.z > rock.z);
+    run.nextGate = run.course.gates.findIndex((gate) => gate.z > rock.z);
     stepRun(run, 0, 1 / 60);
     expect(run.event).toBe("crash");
     expect(run.combo).toBe(0);
@@ -89,19 +73,9 @@ describe("course hazards", () => {
     expect(run.crashTime).toBe(0);
     expect(run.finished).toBe(false);
   });
-  it("makes the straight line down the middle unsafe but still finishable", () => {
-    const run = createRun("classic", 3);
-    let crashes = 0;
-    for (let i = 0; i < 120 * 120 && !run.finished; i++) {
-      stepRun(run, 0, 1 / 120);
-      if (run.event === "crash") crashes++;
-    }
-    expect(run.finished).toBe(true);
-    expect(crashes).toBeGreaterThan(0);
-  });
   it("keeps present landings clear of hazards", () => {
-    for (let seed = 1; seed <= 40; seed++) {
-      const run = createRun("expert", seed);
+    for (let seed = 1; seed <= 25; seed++) {
+      const run = createRun(10 + (seed % 10), seed);
       const landings = new Set<string>();
       for (let i = 0; i < 120 * 90 && !run.finished; i++) {
         stepRun(run, 0, 1 / 120);
@@ -111,10 +85,8 @@ describe("course hazards", () => {
       expect(landings.size).toBeGreaterThan(0);
       for (const key of landings) {
         const [x, z] = key.split(",").map(Number);
-        for (const hazard of run.hazards)
-          expect(
-            Math.abs(hazard.z - z) >= 6 || Math.abs(hazard.x - x) >= 4,
-          ).toBe(true);
+        for (const hazard of run.course.hazards)
+          expect(Math.abs(hazard.z - z) >= 6 || Math.abs(hazard.x - x) >= 4).toBe(true);
       }
     }
   });

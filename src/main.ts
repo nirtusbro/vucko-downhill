@@ -6,10 +6,17 @@ import {
   lampScore,
   BULLSEYE_POINTS,
   COMBO_CAP,
-  FINISH_Z,
-  GATES,
-  LAMPS_PER_RUN,
 } from "./physics";
+import { LEVEL_COUNT, getCourse } from "./levels";
+import { SkiInput } from "./input";
+import { SkiScene } from "./scene";
+import { SkiAudio } from "./audio";
+import { readValue, writeValue } from "./storage";
+import { PRESENT_POINTS } from "./presents";
+import { LevelProgress } from "./progress";
+import { LevelMap } from "./collection-view";
+import { LAMP_CATALOG, lampPoints } from "./lamp-catalog";
+import { lampArt } from "./lamp-art";
 import {
   loadGhost,
   paceDelta,
@@ -17,42 +24,34 @@ import {
   saveGhost,
   type Trace,
 } from "./ghost";
-import { SkiInput } from "./input";
-import { SkiScene } from "./scene";
-import { SkiAudio } from "./audio";
-import { readBest, readValue, writeValue } from "./storage";
-import { DIFFICULTIES, parseDifficulty } from "./difficulty";
-import { PRESENT_POINTS } from "./presents";
-import { LampCollection } from "./collection";
-import { CollectionView } from "./collection-view";
-import { LAMP_CATALOG, lampPoints } from "./lamp-catalog";
 
 const el = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
 const canvas = el<HTMLCanvasElement>("game");
 const boostButton = el<HTMLButtonElement>("boost");
 const input = new SkiInput(canvas, boostButton);
-const collection = new LampCollection();
-const collectionView = new CollectionView(collection);
-let discoveries = 0;
+const progress = new LevelProgress();
+const levelMap = new LevelMap(progress);
+let level = progress.unlocked;
 let collectionReturn = "menu";
-let selectedDifficulty = parseDifficulty(readValue("difficulty", "classic"));
-let run = createRun(selectedDifficulty, undefined, collection.counts);
+let run = createRun(level, undefined, progress.lamps);
 let mode = "menu";
 let scene: SkiScene;
 const audio = new SkiAudio();
 audio.muted = readValue("muted", "false") === "true";
-let best = readBest(selectedDifficulty);
 let tutorial = !readValue("learned", "");
 let steered = false;
 let gateHintShown = false;
 let feedbackUntil = 0;
 let finishDelay = 0;
 let newBest = false;
+let newlyEarned = false;
+let discoveries = 0;
 let elapsed = 0;
 let trace: Trace = [];
-let ghost: Trace | null = loadGhost(selectedDifficulty);
-const paceEl = el("pace");
+let ghost: Trace | null = loadGhost(level);
+const paceEl = el("pace"),
+  goalEl = el("goal");
 const timeEl = el("time"),
   scoreEl = el("score"),
   gatesEl = el("gate-count"),
@@ -66,32 +65,44 @@ const formatTime = (time: number) => {
   const tenths = Math.floor(time * 10);
   return `${String(Math.floor(tenths / 600)).padStart(2, "0")}:${String(Math.floor(tenths / 10) % 60).padStart(2, "0")}.${tenths % 10}`;
 };
-function refreshDifficulty() {
-  document
-    .querySelectorAll<HTMLInputElement>('input[name="difficulty"]')
-    .forEach((input) => {
-      input.checked = input.value === selectedDifficulty;
-    });
-  el("difficulty-detail").textContent =
-    DIFFICULTIES[selectedDifficulty].description;
-  el("home-high-score").textContent =
-    readBest(selectedDifficulty).toLocaleString();
-  el("high-score-mode").textContent = DIFFICULTIES[selectedDifficulty].label;
+function refreshHome() {
+  const course = getCourse(level),
+    lamp = LAMP_CATALOG[course.lampId],
+    earned = progress.lamps[course.lampId];
+  el("home-level").textContent = `Level ${level + 1}`;
+  el("home-level-of").textContent = `· ${course.name}`;
+  el("home-hint").textContent = course.hint;
+  const art = el("home-lamp-art");
+  art.innerHTML = lampArt(lamp);
+  art.className = earned ? "home-lamp owned" : "home-lamp undiscovered";
+  el("home-lamp-name").textContent = earned ? lamp.name : "Reach the goal to earn this lamp";
+  el("home-pickups").innerHTML = course.pickupLampIds
+    .map(
+      (id) =>
+        `<span class="shelf-lamp ${progress.lamps[id] ? "owned" : "undiscovered"}" title="${progress.lamps[id] ? LAMP_CATALOG[id].name : "Still on the slope"}">${lampArt(LAMP_CATALOG[id])}</span>`,
+    )
+    .join("");
+  el("home-lamp-rarity").textContent = lamp.rarity;
+  el("home-lamp-rarity").parentElement!.dataset.rarity = lamp.rarity;
+  el("home-gates").textContent = String(course.gates.length);
+  el("home-goal").textContent = course.goal.toLocaleString();
+  el("home-high-score").textContent = progress.best[level].toLocaleString();
+  el("play-label").textContent = earned
+    ? `Level ${level + 1} again`
+    : `Ski level ${level + 1}`;
+  el<HTMLButtonElement>("level-prev").disabled = level === 0;
+  el<HTMLButtonElement>("level-next").disabled = level >= progress.unlocked;
+  levelMap.refreshHome();
 }
-document
-  .querySelectorAll<HTMLInputElement>('input[name="difficulty"]')
-  .forEach((input) => {
-    input.addEventListener("change", () => {
-      if (!input.checked) return;
-      selectedDifficulty = parseDifficulty(input.value);
-      writeValue("difficulty", selectedDifficulty);
-      run = createRun(selectedDifficulty, undefined, collection.counts);
-      best = readBest(selectedDifficulty);
-      ghost = loadGhost(selectedDifficulty);
-      refreshDifficulty();
-    });
-  });
-refreshDifficulty();
+function selectLevel(next: number) {
+  level = Math.max(0, Math.min(progress.unlocked, next));
+  run = createRun(level, undefined, progress.lamps);
+  ghost = loadGhost(level);
+  refreshHome();
+}
+el("level-prev").onclick = () => selectLevel(level - 1);
+el("level-next").onclick = () => selectLevel(level + 1);
+refreshHome();
 function changeMode(next: string) {
   mode = next;
   input.enabled = mode === "playing";
@@ -140,10 +151,12 @@ function updateHud() {
   }
   paceEl.hidden = !ghost;
   scoreEl.textContent = run.score.toLocaleString();
-  lampsEl.textContent = `${run.lamps} / ${LAMPS_PER_RUN}`;
+  goalEl.textContent = `Goal ${run.goal.toLocaleString()}`;
+  goalEl.classList.toggle("reached", run.score >= run.goal);
+  lampsEl.textContent = `${run.lamps} / ${run.lampsAvailable}`;
   el("present-count").textContent = String(run.presents.collected);
-  gatesEl.textContent = `${run.hits} / ${GATES.length}`;
-  progressEl.style.width = `${(run.z / FINISH_Z) * 100}%`;
+  gatesEl.textContent = `${run.hits} / ${run.course.gates.length}`;
+  progressEl.style.width = `${(run.z / run.course.finishZ) * 100}%`;
   speedEl.innerHTML = `${Math.round(run.speed * 3.6)} <small>km/h</small>`;
   boostButton.classList.toggle("active", run.boosting);
   boostButton.setAttribute("aria-pressed", String(run.boosting));
@@ -152,11 +165,10 @@ function updateHud() {
 function start() {
   if (!scene) return;
   audio.unlock();
-  run = createRun(selectedDifficulty, undefined, collection.counts);
-  best = readBest(selectedDifficulty);
-  el("run-difficulty").textContent = DIFFICULTIES[run.difficulty].label;
-  discoveries = 0;
+  run = createRun(level, undefined, progress.lamps);
+  el("run-level").textContent = `Level ${level + 1}`;
   finishDelay = 0;
+  discoveries = 0;
   steered = false;
   gateHintShown = false;
   feedbackUntil = 0;
@@ -164,7 +176,7 @@ function start() {
   feedback.textContent = "";
   combo.textContent = "";
   trace = [];
-  ghost = loadGhost(selectedDifficulty);
+  ghost = loadGhost(level);
   scene.ghostTrace = ghost;
   scene.reset();
   changeMode("playing");
@@ -180,14 +192,18 @@ function start() {
 el("play").onclick = start;
 el("again").onclick = start;
 el("restart").onclick = start;
+el("next-level").onclick = () => {
+  selectLevel(level + 1);
+  start();
+};
 el("pause").onclick = () => changeMode("paused");
 el("resume").onclick = () => {
   audio.unlock();
   changeMode("playing");
 };
 el("quit").onclick = el("finish-menu").onclick = () => {
-  run = createRun(selectedDifficulty, undefined, collection.counts);
-  refreshDifficulty();
+  run = createRun(level, undefined, progress.lamps);
+  refreshHome();
   scene.reset();
   changeMode("menu");
   scene.update(run, 0, mode, elapsed);
@@ -196,7 +212,7 @@ el("how").onclick = () => changeMode("how");
 el("how-close").onclick = () => changeMode("menu");
 function openCollection(from: string) {
   collectionReturn = from;
-  collectionView.render();
+  levelMap.render();
   changeMode("collection");
   el("collection-close").focus();
 }
@@ -207,6 +223,10 @@ el("collection-close").onclick = () => {
   el(
     collectionReturn === "menu" ? "collection-open" : "finish-collection",
   ).focus();
+};
+levelMap.onSelect = (chosen) => {
+  selectLevel(chosen);
+  start();
 };
 input.onSteer = () => {
   steered = true;
@@ -254,27 +274,35 @@ el("sound").onclick = () => {
 };
 soundIcon();
 function event(name: string) {
-  audio.play(name, run.combo);
   if (name === "finish") {
-    best = readBest(run.difficulty);
-    newBest = run.score > best;
-    best = Math.max(best, run.score);
-    writeValue(`best:${run.difficulty}`, String(best));
-    if (newBest) saveGhost(run.difficulty, trace);
+    audio.play(run.passed ? "finish" : "miss");
+    const result = progress.complete(level, run.score, run.passed);
+    newBest = result.newBest;
+    newlyEarned = result.newlyEarned;
+    if (newBest) saveGhost(level, trace);
     finishDelay = 1.8;
     changeMode("celebrating");
     tutorialEl.hidden = true;
-    feedback.textContent = "What a run!";
-    feedback.className = "show";
+    feedback.textContent = run.passed ? "Level complete!" : "So close!";
+    feedback.className = run.passed ? "show" : "show miss";
     combo.textContent = "";
     feedbackUntil = elapsed + 1.5;
     return;
   }
-  if (name === "lamp" || name === "present") {
-    feedback.textContent =
-      name === "present"
-        ? `Birthday bonus! +${PRESENT_POINTS}`
-        : `${LAMP_CATALOG[run.lampIds[run.lampEvent]].name} +${lampPoints(run.lampIds[run.lampEvent])}`;
+  audio.play(name, run.combo);
+  if (name === "lamp") {
+    const id = run.course.pickupLampIds[run.lampEvent];
+    const isNew = progress.collect(id);
+    if (isNew) discoveries++;
+    levelMap.refreshHome();
+    feedback.textContent = `${LAMP_CATALOG[id].name} +${lampPoints(id)}`;
+    feedback.className = "show lamp";
+    combo.textContent = `${isNew ? "NEW LAMP · " : ""}${LAMP_CATALOG[id].rarity}`;
+    feedbackUntil = elapsed + 1.1;
+    return;
+  }
+  if (name === "present") {
+    feedback.textContent = `Birthday bonus! +${PRESENT_POINTS}`;
     feedback.className = "show lamp";
     feedbackUntil = elapsed + 1.1;
     return;
@@ -294,30 +322,53 @@ function event(name: string) {
       : "";
 }
 function finish() {
-  el("result-difficulty").textContent = DIFFICULTIES[run.difficulty].label;
-  el("result-best-label").textContent =
-    `${DIFFICULTIES[run.difficulty].label} best`;
+  const course = run.course,
+    lamp = LAMP_CATALOG[course.lampId];
+  el("finish-kicker").textContent = run.passed
+    ? `Level ${level + 1} complete!`
+    : `Level ${level + 1} · not quite`;
+  el("result-title").textContent = run.passed
+    ? newlyEarned
+      ? "A new lamp for Ljubica."
+      : "Beautiful run."
+    : "The mountain will wait.";
+  el("result-level").textContent = `Level ${level + 1} of ${LEVEL_COUNT} · ${course.name}`;
   el("result-time").textContent = formatTime(run.time);
   el("result-score").textContent = run.score.toLocaleString();
   el("result-course-score").textContent = (
     run.score - run.timeBonus
   ).toLocaleString();
   el("result-time-bonus").textContent = `+${run.timeBonus.toLocaleString()}`;
-  el("result-discoveries").textContent =
-    `${discoveries} new discoveries · ${collection.discovered} / 100 lamps found`;
-  el("result-gates").textContent = `${run.hits} / 20`;
-  el("result-best").textContent = best.toLocaleString();
-  el("result-lamps").textContent =
-    `${run.lamps} / ${LAMPS_PER_RUN} lovely lamps · +${lampScore(run).toLocaleString()} points`;
-  el("result-bullseyes").textContent =
-    `${run.bullseyes} bullseyes · +${(run.bullseyes * BULLSEYE_POINTS).toLocaleString()} points`;
+  el("result-par").textContent =
+    `${course.timeBonusRate} points per second under ${course.parTime} seconds`;
+  el("result-goal").textContent = run.passed
+    ? `Goal ${run.goal.toLocaleString()} reached`
+    : `Goal ${run.goal.toLocaleString()} · ${(run.goal - run.score).toLocaleString()} short`;
+  el("result-goal").className = run.passed ? "result-goal passed" : "result-goal";
+  el("result-gates").textContent = `${run.hits} / ${course.gates.length}`;
+  el("result-best").textContent = progress.best[level].toLocaleString();
+  const reveal = el("result-lamp");
+  reveal.className = `result-lamp ${run.passed ? "owned" : "undiscovered"}`;
+  reveal.dataset.rarity = lamp.rarity;
+  el("result-lamp-art").innerHTML = lampArt(lamp);
+  el("result-lamp-name").textContent = run.passed
+    ? lamp.name
+    : "Pass the level to earn this lamp";
+  el("result-lamp-rarity").textContent = run.passed
+    ? `${lamp.rarity}${newlyEarned ? " · New!" : " · Earned before"}`
+    : lamp.rarity;
+  el("result-lamps").textContent = run.lampsAvailable
+    ? `${run.lamps} / ${run.lampsAvailable} slope lamps · +${lampScore(run).toLocaleString()} points`
+    : "Every slope lamp here is already yours";
+  el("result-found").textContent =
+    `${discoveries} new lamp${discoveries === 1 ? "" : "s"} found · ${progress.lampsFound(level)} / 5 for this level · ${progress.earnedCount} / 100 in all`;
   el("result-presents").textContent =
     `${run.presents.collected} birthday presents · +${run.presents.collected * PRESENT_POINTS} points`;
+  el("result-bullseyes").textContent =
+    `${run.bullseyes} bullseyes · +${(run.bullseyes * BULLSEYE_POINTS).toLocaleString()} points`;
   el("new-best").hidden = !newBest;
-  el("finish-kicker").textContent =
-    run.lamps === LAMPS_PER_RUN
-      ? "Every little light, just for you. Happy birthday!"
-      : "A little more light for your birthday, Ljubica.";
+  el("next-level").hidden = !(run.passed && level + 1 < LEVEL_COUNT);
+  el("again").textContent = run.passed ? "Ski it again" : "Try again";
   changeMode("finished");
 }
 try {
@@ -329,7 +380,7 @@ try {
     e.preventDefault();
     if (mode === "playing") changeMode("paused");
     el("error-message").textContent =
-      "The graphics session was interrupted. Tap Try again to reload the mountain. Your saved best score is safe.";
+      "The graphics session was interrupted. Tap Try again to reload the mountain. Your progress is safe.";
     el("error").hidden = false;
   });
   const frame = (now: number) => {
@@ -345,14 +396,7 @@ try {
       while (accumulator >= 1 / 120 && mode === "playing") {
         stepRun(run, -input.update(1 / 120), 1 / 120, input.boosting);
         recordSample(trace, run);
-        if (run.lampEvent >= 0) {
-          const id = run.lampIds[run.lampEvent];
-          const isNew = collection.add(id);
-          if (isNew) discoveries++;
-          collectionView.refreshHome();
-          event("lamp");
-          combo.textContent = `${isNew ? "NEW DISCOVERY · " : ""}${LAMP_CATALOG[id].rarity}`;
-        }
+        if (run.lampEvent >= 0) event("lamp");
         if (run.presents.event) event("present");
         if (run.event) event(run.event);
         accumulator -= 1 / 120;

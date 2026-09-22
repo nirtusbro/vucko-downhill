@@ -11,8 +11,8 @@ import { createRun, stepRun } from "../src/physics";
 
 describe("pace ghost", () => {
   it("samples a run every tenth of a second and replays its path", () => {
-    const run = createRun("classic", 11);
-    run.hazards = [];
+    const run = createRun(0, 11);
+    run.course = { ...run.course, hazards: [] };
     const trace: number[] = [];
     for (let i = 0; i < 1200; i++) {
       stepRun(run, 0.05, 1 / 120);
@@ -46,13 +46,13 @@ describe("pace ghost", () => {
     });
     afterEach(() => vi.unstubAllGlobals());
     it("saves one rounded ghost per difficulty and rejects damaged saves", () => {
-      saveGhost("classic", [0, 0, 0.123, 3.456, 1, 6]);
-      expect(loadGhost("classic")).toEqual([0, 0, 0.1, 3.5, 1, 6]);
-      expect(loadGhost("easy")).toBeNull();
-      data.set("vucko-downhill:ghost:easy", "[1,2,3]");
-      expect(loadGhost("easy")).toBeNull();
-      data.set("vucko-downhill:ghost:expert", "{not json");
-      expect(loadGhost("expert")).toBeNull();
+      saveGhost(4, [0, 0, 0.123, 3.456, 1, 6]);
+      expect(loadGhost(4)).toEqual([0, 0, 0.1, 3.5, 1, 6]);
+      expect(loadGhost(5)).toBeNull();
+      data.set("vucko-downhill:ghost:level-5", "[1,2,3]");
+      expect(loadGhost(5)).toBeNull();
+      data.set("vucko-downhill:ghost:level-6", "{not json");
+      expect(loadGhost(6)).toBeNull();
     });
   });
 });

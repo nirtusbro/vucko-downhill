@@ -48,12 +48,12 @@ export class Hazards {
     }
   }
   update(s: Run) {
-    if (this.active !== s.hazards) {
-      this.active = s.hazards;
+    if (this.active !== s.course.hazards) {
+      this.active = s.course.hazards;
       let rocks = 0,
         trees = 0;
       for (const g of [...this.rocks, ...this.trees]) g.userData.used = false;
-      for (const hazard of s.hazards) {
+      for (const hazard of s.course.hazards) {
         const g =
           hazard.kind === "rock" ? this.rocks[rocks++] : this.trees[trees++];
         if (!g) continue;

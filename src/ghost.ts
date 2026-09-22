@@ -1,4 +1,3 @@
-import type { DifficultyId } from "./difficulty";
 import type { Run } from "./physics";
 import { readValue, writeValue } from "./storage";
 
@@ -50,9 +49,11 @@ export function paceDelta(trace: Trace, run: Pick<Run, "z" | "time">) {
   }
   return run.time - ghostTime;
 }
-export function loadGhost(difficulty: DifficultyId): Trace | null {
+export function loadGhost(level: number): Trace | null {
   try {
-    const parsed: unknown = JSON.parse(readValue(`ghost:${difficulty}`, "null"));
+    const parsed: unknown = JSON.parse(
+      readValue(`ghost:level-${level}`, "null"),
+    );
     if (
       Array.isArray(parsed) &&
       parsed.length >= 4 &&
@@ -65,9 +66,9 @@ export function loadGhost(difficulty: DifficultyId): Trace | null {
   }
   return null;
 }
-export function saveGhost(difficulty: DifficultyId, trace: Trace) {
+export function saveGhost(level: number, trace: Trace) {
   writeValue(
-    `ghost:${difficulty}`,
+    `ghost:level-${level}`,
     JSON.stringify(trace.map((n) => Math.round(n * 10) / 10)),
   );
 }

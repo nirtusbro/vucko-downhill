@@ -1,6 +1,6 @@
 # Vučko — Downhill days
 
-A complete mobile-first slalom skiing game, personalized as a birthday present for Ljubica, built with Three.js, TypeScript, and Vite. All mountain scenery, table lamps, birthday decorations and the animated wolf are modeled procedurally. Audio is synthesized locally; fonts are bundled. There are no remote asset or account dependencies.
+A complete mobile-first slalom skiing game, personalized as a birthday present for Ljubica, built with Three.js, TypeScript, and Vite. Twenty levels hold a hundred table lamps: four to pick up on each slope and one earned at each finish. All mountain scenery, table lamps, birthday decorations and the animated wolf are modeled procedurally. Audio is synthesized locally; fonts are bundled. There are no remote asset or account dependencies.
 
 ## Run
 
@@ -25,47 +25,71 @@ Deploy the contents of `dist/` to any static HTTPS host. Relative asset paths su
 
 - **Phone:** steer with your right thumb by dragging left/right. Hold the gold **Speed up** button with your left thumb for a 45% increase in target speed. Both touches work independently; releasing boost eases speed back down, while releasing steering straightens gradually. A full-strength turn takes roughly 90 pixels of drag on a phone.
 - **Desktop:** mouse drag, A/D, or left/right arrows to steer; hold Space (or the speed button) to boost. P or Esc toggles pause. Boost is unlimited, but it widens your turning arc by about a quarter and leaves less reaction time for gates and pickups; it stops during crashes, pause and finish.
-- Pass between both flags of each gate. Hits award 100 points multiplied by a combo that caps at ×8, and crossing within 1 metre of the gate's centre adds a +50 bullseye. Gate openings shrink by 20% from the first gate to the last, and the slope steepens so cruising speed rises 8% by the finish.
-- Choose Easy, Classic or Expert on the home screen. Cruising speeds are approximately 86, 108 and 130 km/h; sharper carving costs speed. Easy has wider gates and gentler turns; Expert has tight gates and stronger, quicker-responding turns, and keeps lamps closer to the line because it leaves less time to cut back. Easy, Classic and Expert seed a rock into roughly a quarter, a half and three quarters of the lamp-free stretches. Your selection and each mode's best score are saved separately.
-- A prominent **High score** on the home screen shows your saved record for the selected difficulty, updates after a new best and survives reloads.
-- Collect optional table lamps in the open stretches between gates. Each run places 8 lamps, chosen by the run seed with one lamp per band of two or three stretches, so their spots vary between runs and never bunch. A lamp sits halfway to the next gate, held 5 metres wide of the direct line on the previous gate's side, with a rock on the direct line beside it: go wide for the lamp or cut inside past the rock. Rarer lamps sit farther out (Rare +1.5 m, Epic +2.5 m, Legendary +3 m) behind a guard tree, and pay more: Common 50, Uncommon 75, Rare 100, Epic 150 and Legendary 250 points. Each run rolls 8 distinct designs from a catalogue of 100 lamps. Ten shape families and ten finishes vary silhouettes, proportions, colours and decorative details. Collected lamps float up and disappear with a chime. The HUD and finish screen show the collection count and lamp points. A perfect run through all 20 gates scores 13,200 before bullseyes, lamps, presents and the finish-time bonus.
-- A birthday present falls at a random location about 5.5 seconds into the run and then every 9–14 seconds, so a typical run sees three or four. Gold rings mark their landing spots; ski close after they land for +200 points. Drops stay clear of gate stations, rocks, trees and the slope edges, and vary each run. Missed presents disappear; they never cause a crash or break your combo.
-- Every lamp pickup is saved immediately to **Ljubica’s collection**, accessible from the home screen and finish results. The gallery shows collected lamps in colour and undiscovered ones as black silhouettes, with filters for collected/missing and rarity. Counts persist across runs and reloads; the original four lamp counts migrate automatically. If storage is unavailable, progress stays available for the session.
-- **Rarity:** 40 Common, 30 Uncommon, 20 Rare, 8 Epic and 2 Legendary designs. Base tier weights are 55/25/14/5/1; weighted sampling without replacement and a 3× weight for unseen designs help collection progress. All 100 can appear in any difficulty.
-- **Finish-time bonus:** `max(0, round((90 − seconds) × 50))`, awarded only once after crossing the finish. Faster runs earn more; slow runs lose no existing points. The result shows on-slope points, time bonus and total separately. Existing high scores are preserved.
-- Missed gates and tumbles break the combo. Rocks and trees inside the course, the edge scenery and the course boundary cause a short tumble and automatic recovery.
-- **Pace ghost:** the path of your best-scoring run in each mode is saved with it. On later runs a pale Vučko skis that line beside you, and the timer shows how many seconds ahead (green) or behind (red) you are at the same point of the course.
-- The 959-metre, 20-gate course mostly spaces gates 45 metres apart, with three quick 30–32 metre follow-ups and two same-side doubles that break the left-right rhythm; the last third swings up to 7 metres either side. A clean run takes roughly 28–45 seconds depending on difficulty; crashes add time. Lamps sit halfway along the 45-metre stretches.
-- Sound starts only after a gesture. The mute button and best score persist on this browser. The run pauses when the page hides or loses focus.
+- **20 levels, 100 lamps.** Level n owns catalogue lamps 5n−4 to 5n: four wait on its slope as pickups and the fifth, the rarest, is earned by reaching the level's **goal score**, which also unlocks the next level. Because the catalogue is ordered by rarity, the ladder climbs from Common lamps to the two Legendary ones on level 20. Every level is fixed in every element: its layout, its lamps, its rocks and trees, and even where and when the presents fall, so a level plays the same way every time. Pickups are saved to the collection the moment you touch them, even if you leave the run early; the finish lamp stays a silhouette until you pass. The home screen shows the current level, its finish lamp, the four slope lamps (lit once found), the goal and your level best, with arrows to revisit any unlocked level. The **Levels & lamps** map lists all 20 levels with their five lamps, the next level highlighted and locked levels greyed, with a Ski button on each unlocked level.
+- **Twenty hand-placed levels.** Every gate of every level is authored by hand in `src/levels.ts` as [x, gap, width scale], along with which stretches hold the four lamps, guard trees, stray rocks, line rocks (a rock on the direct line halfway along), rock gates (two rocks to thread on the way into the next flags) and weaves (three rocks alternating sides on the way in). Nothing is generated at random; a level plays the same way every time, presents included. Each level is named and introduces a challenge, shown as a one-line hint on the home card:
+
+  | # | Level | What it teaches or adds |
+  | - | ----- | ----------------------- |
+  | 1 | First tracks | Steering: wide gates whose swings grow from ±4.5 to ±7 |
+  | 2 | Little lights | The fork: a rock on the line beside every lamp |
+  | 3 | Find the rhythm | Combo: even spacing, one off-beat gate, goal at 72% |
+  | 4 | Hold the line | Same-side pairs with a rock between them, then a snap back |
+  | 5 | Light touch | Two chicanes of 30-metre flicks that narrow as they go |
+  | 6 | Read ahead | Three rock gates on the way into flags |
+  | 7 | Guarded lights | Guard trees on every lamp, rock-strewn staircases |
+  | 8 | Commit | Edge-to-edge hairpins with calm gates between |
+  | 9 | Squeeze | Two funnels closing to 75%, a rock gate at the end |
+  | 10 | Halfway sprint | Tight par, 120 points per second, boostable straights |
+  | 11 | The long run | Twenty-two gates mixing every earlier trick |
+  | 12 | Tight corridor | Flags narrowing to 4.7 m with four rock gates |
+  | 13 | Boulder field | Three weaves back to back, rock gates and stray rocks |
+  | 14 | Zigzag | Edge-to-edge alternation at 36-metre spacing |
+  | 15 | No mercy | Goal at 90%, hairpins, a weave and line rocks |
+  | 16 | Speed run | Boost required (see below), long boostable straights |
+  | 17 | Thin air | 37 m/s through 5.8-metre flags with chicanes |
+  | 18 | The gauntlet | Three weaves, three rock gates, hairpins and flicks |
+  | 19 | Everything at once | 26 gates, every trick, goal at 90% |
+  | 20 | The summit | Boost required, 40 m/s, 5.5-metre flags, 26 hazards |
+
+  Across the ladder the course grows from 10 to 26 gates, gaps close from 55 to 30–45 metres, gate openings narrow from 8.4 to 5.5 metres (further within funnels and the corridor), and cruising speed rises from about 91 to 166 km/h (each level's authored speed times a global 1.15 scale, after the game was made 15% faster). **No two consecutive gates can be taken in a straight line:** their openings never overlap sideways, and where a design wants a same-side pair or a small step, a rock sits on the line between them (a lamp's fork rock, a line rock, a rock gate or a weave), so the skier always has to move. Every layout is checked so a relaxed steering line can still hit every gate and pickup at that level's speed with at least 0.4 m of gate margin, and a straight, un-steered line passes no level.
+- **Replays.** Lamps already in the collection are not shown on the slope again and score nothing, and the HUD counts only the lamps still to find. On the two boost levels, whose goal includes the lamp points, the goal drops by the points of lamps already owned so a replay stays passable.
+- **Boost levels.** On Speed run and The summit the goal sits above a perfect cruising run: every gate dead centre, every lamp, nothing to spare on time. Par is set 2% above the course length at cruising speed, the time bonus there is 250 points per second, and the goal asks for one second more than a perfect cruise, so only seconds gained by boosting close the gap. Tests confirm a perfect no-boost run fails both and a run that boosts on the straights passes.
+- **Gates.** Pass between both flags. Hits award 100 points multiplied by a combo that caps at ×8, and crossing within 1 metre of the gate's centre adds a +50 bullseye. The slope steepens so cruising speed rises 8% by the finish.
+- **Slope lamps.** Each level's four pickups sit off the racing line on the previous gate's side of their stretch, worth 50–250 points each by rarity, and move earlier in the stretch on faster levels to leave room to cut back. From level 2 a fork rock sits on the direct line beside every pickup: go wide for the lamp or cut inside past the rock. From level 7 some pickups also get a guard tree on the lamp side. Lamp-free stretches hold a rock where a lamp would have been with a chance rising from 10% at level 3 to 80% at level 20.
+- **Presents.** A birthday present falls at a random location about 5.5 seconds into the run and then every 9–14 seconds. Gold rings mark their landing spots; ski close after they land for +200 points. Drops stay clear of gate stations, rocks, trees and the slope edges, and vary each run. Missed presents disappear; they never cause a crash or break your combo.
+- **Finish-time bonus:** points per second under the level's par time, awarded once after crossing the finish. Most levels pay 50 a second with par about 1.3× the course length at cruising speed plus two seconds, so a clean run earns a few hundred points; Halfway sprint pays 120 a second against a tighter par, and the two boost levels 250. The result shows on-slope points, time bonus, goal and total.
+- **Pace ghost:** the path of your best-scoring run on each level is saved. On later runs a pale Vučko skis that line beside you, and the timer shows how many seconds ahead (green) or behind (red) you are at the same point of the course.
+- Missed gates and tumbles break the combo. Rocks and trees inside the course, the edge scenery and the course boundary cause a short tumble and automatic recovery. A clean level takes roughly 20–30 seconds.
+- Sound starts only after a gesture. The mute button, level progress, best scores and ghosts persist on this browser. The run pauses when the page hides or loses focus.
 
 ## Structure
 
 | File                 | Responsibility                                                              |
 | -------------------- | --------------------------------------------------------------------------- |
-| `src/physics.ts`     | Renderer-independent movement, course, seeded lamp spots and hazards, collisions, scoring and finish |
-| `src/hazards.ts`     | Pooled rocks and trees for the per-run hazards inside the course |
-| `src/ghost.ts`       | Best-run trace sampling, pace delta and per-mode storage |
-| `src/random.ts`      | Hashed seeded generator shared by lamp spots and hazards |
-| `src/difficulty.ts`  | Speed, steering, gate opening and lamp pickup settings per mode             |
+| `src/levels.ts`      | Twenty hand-placed level designs, level-to-lamp mapping and the course builder |
+| `src/physics.ts`     | Renderer-independent movement, collisions, scoring, goal and finish         |
+| `src/progress.ts`    | Unlocked level, the hundred-lamp collection and best score per level in storage |
 | `src/presents.ts`    | Random timed drops, landing, swept pickup scoring and bounded gift pool    |
-| `src/collection.ts`  | Versioned collection counts, original-save migration and storage fallback        |
-| `src/lamp-catalog.ts` | Stable 100-design catalogue, lamps per run and weighted run selection |
+| `src/lamp-catalog.ts` | Stable 100-design catalogue and rarity points |
 | `src/lamp-model.ts` | Cached 3D sculptures for all ten shape families |
-| `src/lamp-art.ts` | Matching SVG collection illustrations |
-| `src/collection-view.ts` | Gallery, filters and home preview |
-| `src/scoring.ts` | Finish-time bonus formula |
+| `src/lamp-art.ts` | Matching SVG illustrations |
+| `src/collection-view.ts` | Level map listing each level's five lamps, plus the home preview |
+| `src/hazards.ts`     | Pooled rocks and trees for the hazards inside each course |
+| `src/ghost.ts`       | Best-run trace sampling, pace delta and per-level storage |
+| `src/random.ts`      | Hashed seeded generator behind every level layout |
+| `src/scoring.ts` | Finish-time bonus against par |
 | `src/input.ts`       | Pointer capture, analog drag and keyboard input                             |
-| `src/scene.ts`       | Rendering, responsive following camera, gates and lighting                  |
+| `src/scene.ts`       | Rendering, responsive following camera, per-level gates and lighting        |
 | `src/character.ts`   | Articulated wolf, scarf, skis, poles and celebration                        |
-| `src/environment.ts` | Culled scenery chunks, instanced trees/fences, mountains and cabins         |
+| `src/environment.ts` | Culled scenery chunks, instanced forest and fringe trees, bushes, lamp posts, fences, a chairlift, mountains, cabins and movable finish |
 | `src/effects.ts`     | Fixed-size pools for world-space ski tracks and snow spray                  |
-| `src/birthday.ts`    | Run lamp models, pickup animation, gifts, bunting and home display |
+| `src/birthday.ts`    | Slope lamp models, pickup animation, gifts, bunting and home display |
 | `src/audio.ts`       | Gesture-unlocked Web Audio ambience and effects                             |
-| `src/main.ts`        | Fixed-step loop, screens, HUD, tutorial and browser lifecycle               |
+| `src/main.ts`        | Fixed-step loop, level selection, screens, HUD, tutorial and browser lifecycle |
 
 Simulation runs at 120 fixed steps per second independently of rendering. Rendering caps pixel ratio at 1.75, uses no real-time shadow maps, limits snow particles to 110 and track segments to 900, and culls course chunks behind/ahead of the skier. Geometry and materials are reused. The camera adapts between portrait and landscape.
 
-The automated tests cover acceleration, steering inertia, edge resistance, 30/120-Hz trajectory consistency, single-award gate scoring, bullseyes and the ×8 combo, the boost turning cost, gate tightening and the slope ramp, missed gates, boundary/rock crash recovery, simultaneous collision/gate feedback, per-run hazards and hazard-free present landings, ghost sampling, pace and storage, full-course reachability of every gate and lamp across six seeds in each mode, frozen finish time, lamp pickup bonuses, missed pickups, and replay resets. Browser checks and outstanding physical-device checks are recorded in `docs/verification.md`.
+The automated tests cover acceleration, steering inertia, edge resistance, 30/120-Hz trajectory consistency, single-award gate scoring, bullseyes and the ×8 combo, the boost turning cost, gate tightening and the slope ramp, missed gates, boundary/rock crash recovery, simultaneous collision/gate feedback, hazard placement rules and hazard-free present landings, ghost sampling, pace and storage, level progress, immediate pickup saves and unlocking, twenty distinct hand-placed layouts covering all hundred lamps with rising speed and narrowing gates, one feature per stretch, hazards clear of gate lines, no straight-line gate pairs without a rock between them, presents fixed per level, reachability of every gate and pickup on all 20 levels with a passable goal, boost required on the two boost levels, an un-passable straight line on every level, owned lamps hidden on replay, frozen finish time, pickup bonuses, missed pickups, and replay resets. Browser checks and outstanding physical-device checks are recorded in `docs/verification.md`.
 
 To regenerate home-screen icons after editing `public/icon.svg`, run `node scripts/icons.mjs`.
 

@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { FINISH_Z, OBSTACLES, snowHeight } from "./physics";
+import { OBSTACLES, snowHeight } from "./physics";
+import { MAX_COURSE_LENGTH } from "./levels";
 import {
   box,
   circle,
@@ -17,6 +18,7 @@ const pine = material("#326c64"),
   snow = material("#eaf4fc"),
   wood = material("#a77f61");
 const stone = material("#8396a6");
+const glow = new THREE.MeshBasicMaterial({ color: "#ffe9a8", toneMapped: false });
 const shade = new THREE.MeshBasicMaterial({
   color: "#759ebf",
   transparent: true,
@@ -56,6 +58,7 @@ function stamp(
 export class Environment {
   chunks: THREE.Group[] = [];
   mountains = new THREE.Group();
+  private finishGroup = new THREE.Group();
   constructor(scene: THREE.Scene) {
     const rand = seeded(1984);
     for (let chunk = -1; chunk < 18; chunk++) {
@@ -64,10 +67,16 @@ export class Environment {
       scene.add(group);
       this.chunks.push(group);
       const trees: { x: number; y: number; z: number; s: number }[] = [];
-      for (let i = 0; i < 18; i++) {
+      // A deep forest either side, with a denser fringe just past the fence.
+      for (let i = 0; i < 26; i++) {
         const z = chunk * 90 + rand() * 90,
-          x = (i % 2 ? 1 : -1) * (25 + rand() * 40);
+          x = (i % 2 ? 1 : -1) * (25 + rand() * 45);
         trees.push({ x, z, y: snowHeight(z), s: 0.7 + rand() * 1.25 });
+      }
+      for (let i = 0; i < 8; i++) {
+        const z = chunk * 90 + rand() * 90,
+          x = (i % 2 ? 1 : -1) * (21.8 + rand() * 3);
+        trees.push({ x, z, y: snowHeight(z), s: 0.55 + rand() * 0.5 });
       }
       for (const o of OBSTACLES.filter(
         (o) => o.kind === "tree" && Math.floor(o.z / 90) === chunk,
@@ -134,6 +143,24 @@ export class Environment {
           radius: 1 + rand(),
           kind: "rock",
         });
+      }
+      // Snow-covered bushes along the fringe.
+      const bushes = instance(group, sphere, snow, 8);
+      for (let i = 0; i < 8; i++) {
+        const z = chunk * 90 + rand() * 90,
+          x = (i % 2 ? 1 : -1) * (22 + rand() * 6),
+          s = 0.6 + rand() * 0.7;
+        stamp(bushes, i, x, snowHeight(z) + s * 0.45, z, s * 1.4, s * 0.8, s * 1.2);
+      }
+      // Lamp posts along the fence, glowing all the way down.
+      const posts_ = instance(group, cylinder, wood, 2),
+        heads = instance(group, sphere, glow, 2);
+      for (let i = 0; i < 2; i++) {
+        const z = chunk * 90 + 22 + i * 45,
+          x = (chunk + i) % 2 ? 22.6 : -22.6,
+          y = snowHeight(z);
+        stamp(posts_, i, x, y + 1.6, z, 0.09, 3.2, 0.09);
+        stamp(heads, i, x, y + 3.35, z, 0.32, 0.4, 0.32);
       }
       const stones = instance(group, pebble, stone, rocks.length),
         snowcaps = instance(group, pebble, snow, rocks.length);
@@ -212,6 +239,7 @@ export class Environment {
       if (chunk >= 0 && chunk % 4 === 0)
         this.cabin(group, (chunk % 8 === 0 ? -1 : 1) * 32, chunk * 90 + 54);
     }
+    this.skiLift(scene);
     // Distant peaks are a separate, fog-free backdrop, moving only with forward travel.
     const mountainMat = new THREE.MeshLambertMaterial({
       color: "#8cb3ce",
@@ -268,7 +296,7 @@ export class Environment {
     const glints: number[] = [];
     for (let i = 0; i < 700; i++) {
       const x = (rand() - 0.5) * 38,
-        z = rand() * (FINISH_Z + 60);
+        z = rand() * (MAX_COURSE_LENGTH + 60);
       glints.push(
         x,
         snowHeight(z) + 0.014,
@@ -290,6 +318,37 @@ export class Environment {
         }),
       ),
     );
+  }
+  /** A chairlift climbing the far left of the slope. */
+  skiLift(scene: THREE.Scene) {
+    const group = new THREE.Group();
+    scene.add(group);
+    const x = -38,
+      count = Math.ceil(MAX_COURSE_LENGTH / 90) + 2;
+    const pylons = instance(group, cylinder, stone, count * 2),
+      arms = instance(group, box, stone, count);
+    const cable: number[] = [];
+    const chairs = instance(group, box, material("#3f5f78"), count * 3),
+      seats = instance(group, box, material("#c9d6e2"), count * 3);
+    for (let i = 0; i < count; i++) {
+      const z = -60 + i * 90,
+        y = snowHeight(z);
+      for (const side of [-1, 1])
+        stamp(pylons, i * 2 + side + 1 - 1 + (side > 0 ? 1 : 0), x + side * 1.4, y + 7, z, 0.22, 14, 0.22);
+      stamp(arms, i, x, y + 14, z, 5, 0.3, 0.3);
+      cable.push(x - 2.2, y + 13.9, z, x - 2.2, snowHeight(z + 90) + 13.9, z + 90);
+      cable.push(x + 2.2, y + 13.9, z, x + 2.2, snowHeight(z + 90) + 13.9, z + 90);
+      for (let j = 0; j < 3; j++) {
+        const zz = z + 15 + j * 30,
+          side = j % 2 ? 2.2 : -2.2,
+          yy = snowHeight(zz) + 13.9 - 2.4;
+        stamp(chairs, i * 3 + j, x + side, yy + 0.8, zz, 0.08, 2.4, 0.08);
+        stamp(seats, i * 3 + j, x + side, yy - 0.5, zz, 1.4, 0.5, 0.9);
+      }
+    }
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute("position", new THREE.Float32BufferAttribute(cable, 3));
+    group.add(new THREE.LineSegments(geom, new THREE.LineBasicMaterial({ color: "#4b5b68" })));
   }
   cabin(parent: THREE.Group, x: number, z: number) {
     const g = new THREE.Group();
@@ -337,9 +396,13 @@ export class Environment {
     shape(g, box, snow, [1.2, 6.3, 1], [0.8, 0.2, 0.8]);
     shape(g, box, wood, [0, 0.23, -3], [6, 0.3, 1.5]);
   }
+  /** The finish banner moves to wherever the current course ends. */
+  setFinish(z: number) {
+    this.finishGroup.position.set(0, snowHeight(z), z);
+  }
   finish(scene: THREE.Scene) {
-    const group = new THREE.Group();
-    group.position.set(0, snowHeight(FINISH_Z), FINISH_Z);
+    const group = this.finishGroup;
+    this.setFinish(MAX_COURSE_LENGTH);
     scene.add(group);
     const blue = material("#2e80b2"),
       white = material("#f2f9ff");
