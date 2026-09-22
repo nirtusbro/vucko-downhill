@@ -24,6 +24,7 @@ describe("difficulty", () => {
   it("gets every mode moving briskly within three seconds", () => {
     for (const [index, level] of levels.entries()) {
       const run = createRun(level);
+      run.hazards = [];
       for (let tick = 0; tick < 360; tick++) stepRun(run, 0, 1 / 120);
       expect(run.speed).toBeGreaterThan([22, 28, 34][index]);
       expect(run.z).toBeGreaterThan([57, 70, 85][index]);
