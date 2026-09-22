@@ -4,6 +4,8 @@ import { Vucko } from "./character";
 import { Environment } from "./environment";
 import { SnowEffects } from "./effects";
 import { Birthday } from "./birthday";
+import { Hazards } from "./hazards";
+import { ghostPose, type Trace } from "./ghost";
 import { gateWidth, type DifficultyId } from "./difficulty";
 
 export const mat = (color: THREE.ColorRepresentation) =>
@@ -28,6 +30,9 @@ export class SkiScene {
   environment: Environment;
   effects: SnowEffects;
   birthday: Birthday;
+  hazards: Hazards;
+  ghost = new Vucko();
+  ghostTrace: Trace | null = null;
   shadow: THREE.Mesh;
   gateGroups: THREE.Group[] = [];
   private look = new THREE.Vector3();
@@ -146,6 +151,19 @@ export class SkiScene {
     this.environment = new Environment(this.scene);
     this.effects = new SnowEffects(this.scene);
     this.birthday = new Birthday(this.scene);
+    this.hazards = new Hazards(this.scene);
+    // A pale copy of Vučko replays the best run for this difficulty.
+    this.ghost.root.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) {
+        const m = (obj.material as THREE.Material).clone();
+        m.transparent = true;
+        m.opacity = 0.3;
+        m.depthWrite = false;
+        obj.material = m;
+      }
+    });
+    this.ghost.root.visible = false;
+    this.scene.add(this.ghost.root);
     window.addEventListener("resize", () => this.resize());
     this.resize();
   }
@@ -246,9 +264,30 @@ export class SkiScene {
       this.skier.position.z + 0.4,
     );
     this.character.animate(s, elapsed, mode);
+    this.hazards.update(s);
+    this.updateGhost(s, mode, elapsed);
     this.environment.update(s.z);
     this.birthday.update(s, elapsed, mode);
     this.effects.update(s, mode === "paused" ? 0 : dt, mode === "playing");
     this.renderer.render(this.scene, this.camera);
+  }
+  private updateGhost(s: Run, mode: string, elapsed: number) {
+    const pose =
+      this.ghostTrace && (mode === "playing" || mode === "paused")
+        ? ghostPose(this.ghostTrace, s.time)
+        : null;
+    const root = this.ghost.root;
+    root.visible =
+      !!pose &&
+      !pose.finished &&
+      (Math.abs(pose.z - s.z) > 4 || Math.abs(pose.x - s.x) > 2);
+    if (!pose || !root.visible) return;
+    root.position.set(pose.x, snowHeight(pose.z) + 0.03, pose.z);
+    root.rotation.set(0.1, pose.heading, 0);
+    this.ghost.animate(
+      { crashTime: 0, heading: pose.heading, boosting: false },
+      elapsed,
+      mode,
+    );
   }
 }

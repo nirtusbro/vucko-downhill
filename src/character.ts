@@ -247,7 +247,11 @@ export class Vucko {
       [-0.3, 0.4, 0],
     );
   }
-  animate(s: Run, t: number, mode: string) {
+  animate(
+    s: Pick<Run, "crashTime" | "heading" | "boosting">,
+    t: number,
+    mode: string,
+  ) {
     const menu = mode === "menu" || mode === "how";
     const celebrating = mode === "finished" || mode === "celebrating";
     this.body.position.y =

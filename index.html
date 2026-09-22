@@ -151,7 +151,8 @@
       <section id="hud" hidden aria-label="Race information">
         <div class="hud-top">
           <div class="stat">
-            <span>Time</span><strong id="time">00:00.0</strong>
+            <span>Time</span><strong id="time">00:00.0</strong
+            ><em id="pace" aria-label="Pace against your best run" hidden></em>
           </div>
           <div class="progress">
             <div class="progress-label">
@@ -225,24 +226,32 @@
           <h2>Find your flow.</h2>
           <p>
             Drag left or right with your right thumb to carve. Hold Speed up
-            with your left thumb for a 45% boost. Release to ease back to
-            cruising speed.
+            with your left thumb for a 45% boost. Boosting widens your turns,
+            so ease off before tight gates.
           </p>
           <div class="how-gates">
             <i></i
             ><span
-              >Pass between the matching flags.<br />Link gates for up to a ×4
-              combo.</span
+              >Pass between the matching flags.<br />Link gates for up to a ×8
+              combo, and thread the middle for a +50 bullseye. The gates tighten
+              and the slope steepens toward the finish.</span
             ><i></i>
           </div>
           <p class="lamp-help">
-            Eight lamps wait off the racing line each run.<br />Swing wide to
-            grab one for +50 points, then cut back for the next gate. Discover
-            100 designs across five rarities in your collection.
+            Eight lamps wait off the racing line each run, with a rock on the
+            line beside each one.<br />Go wide for the lamp or cut inside past
+            the rock. Rarer lamps sit farther out, behind a tree, and pay more:
+            +50 up to +250. Discover 100 designs across five rarities in your
+            collection.
           </p>
           <p class="lamp-help">
             Now and then a present falls from the sky!<br />Follow the gold
             ring and collect it after it lands for +200 points.
+          </p>
+          <p class="lamp-help">
+            Rocks hide in some open stretches too, and a tumble costs speed and
+            your combo.<br />Once you have a best run, a pale Vučko races it
+            beside you and the timer shows how far ahead or behind you are.
           </p>
           <p class="lamp-help">
             Finish faster for more points: +50 for every second under 90
@@ -290,7 +299,8 @@
               <path d="M7 3h14l5 13H2z" />
               <path d="M14 16v10M8 27h12" /></svg
             ><strong id="result-lamps">0 / 8 lovely lamps</strong
-            ><span id="result-presents">0 birthday presents · +0 points</span>
+            ><span id="result-presents">0 birthday presents · +0 points</span
+            ><span id="result-bullseyes">0 bullseyes · +0 points</span>
           </div>
           <button id="again" class="primary">Play again <span>↗</span></button
           ><button id="finish-menu" class="text-button">Main menu</button>

@@ -3,10 +3,20 @@ import "./collection.css";
 import {
   createRun,
   stepRun,
+  lampScore,
+  BULLSEYE_POINTS,
+  COMBO_CAP,
   FINISH_Z,
   GATES,
   LAMPS_PER_RUN,
 } from "./physics";
+import {
+  loadGhost,
+  paceDelta,
+  recordSample,
+  saveGhost,
+  type Trace,
+} from "./ghost";
 import { SkiInput } from "./input";
 import { SkiScene } from "./scene";
 import { SkiAudio } from "./audio";
@@ -15,7 +25,7 @@ import { DIFFICULTIES, parseDifficulty } from "./difficulty";
 import { PRESENT_POINTS } from "./presents";
 import { LampCollection } from "./collection";
 import { CollectionView } from "./collection-view";
-import { LAMP_CATALOG } from "./lamp-catalog";
+import { LAMP_CATALOG, lampPoints } from "./lamp-catalog";
 
 const el = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
@@ -40,6 +50,9 @@ let feedbackUntil = 0;
 let finishDelay = 0;
 let newBest = false;
 let elapsed = 0;
+let trace: Trace = [];
+let ghost: Trace | null = loadGhost(selectedDifficulty);
+const paceEl = el("pace");
 const timeEl = el("time"),
   scoreEl = el("score"),
   gatesEl = el("gate-count"),
@@ -74,6 +87,7 @@ document
       writeValue("difficulty", selectedDifficulty);
       run = createRun(selectedDifficulty, undefined, collection.counts);
       best = readBest(selectedDifficulty);
+      ghost = loadGhost(selectedDifficulty);
       refreshDifficulty();
     });
   });
@@ -116,6 +130,15 @@ function changeMode(next: string) {
 }
 function updateHud() {
   timeEl.textContent = formatTime(run.time);
+  if (ghost) {
+    const delta = paceDelta(ghost, run);
+    const even = Math.abs(delta) < 0.05;
+    paceEl.textContent = even
+      ? "0.0s"
+      : `${delta > 0 ? "+" : "−"}${Math.abs(delta).toFixed(1)}s`;
+    paceEl.className = even ? "even" : delta > 0 ? "behind" : "ahead";
+  }
+  paceEl.hidden = !ghost;
   scoreEl.textContent = run.score.toLocaleString();
   lampsEl.textContent = `${run.lamps} / ${LAMPS_PER_RUN}`;
   el("present-count").textContent = String(run.presents.collected);
@@ -140,6 +163,9 @@ function start() {
   feedback.className = "";
   feedback.textContent = "";
   combo.textContent = "";
+  trace = [];
+  ghost = loadGhost(selectedDifficulty);
+  scene.ghostTrace = ghost;
   scene.reset();
   changeMode("playing");
   scene.update(run, 0, mode, elapsed);
@@ -234,6 +260,7 @@ function event(name: string) {
     newBest = run.score > best;
     best = Math.max(best, run.score);
     writeValue(`best:${run.difficulty}`, String(best));
+    if (newBest) saveGhost(run.difficulty, trace);
     finishDelay = 1.8;
     changeMode("celebrating");
     tutorialEl.hidden = true;
@@ -247,7 +274,7 @@ function event(name: string) {
     feedback.textContent =
       name === "present"
         ? `Birthday bonus! +${PRESENT_POINTS}`
-        : `${LAMP_CATALOG[run.lampIds[run.lampEvent]].name} +50`;
+        : `${LAMP_CATALOG[run.lampIds[run.lampEvent]].name} +${lampPoints(run.lampIds[run.lampEvent])}`;
     feedback.className = "show lamp";
     feedbackUntil = elapsed + 1.1;
     return;
@@ -255,14 +282,16 @@ function event(name: string) {
   if (!["gate", "miss", "crash"].includes(name)) return;
   feedback.textContent =
     name === "gate"
-      ? `+${100 * run.combo}`
+      ? `+${100 * run.combo + run.gateBonus}${run.gateBonus ? " · BULLSEYE" : ""}`
       : name === "miss"
         ? "Next one is yours"
         : "A little snow hug!";
   feedback.className = name === "gate" ? "show" : "show miss";
   feedbackUntil = elapsed + 1.25;
   combo.textContent =
-    name === "gate" && run.combo > 1 ? `×${run.combo}  NICE CARVING` : "";
+    name === "gate" && run.combo > 1
+      ? `×${run.combo}  ${run.combo === COMBO_CAP ? "MAX COMBO" : "NICE CARVING"}`
+      : "";
 }
 function finish() {
   el("result-difficulty").textContent = DIFFICULTIES[run.difficulty].label;
@@ -279,7 +308,9 @@ function finish() {
   el("result-gates").textContent = `${run.hits} / 20`;
   el("result-best").textContent = best.toLocaleString();
   el("result-lamps").textContent =
-    `${run.lamps} / ${LAMPS_PER_RUN} lovely lamps`;
+    `${run.lamps} / ${LAMPS_PER_RUN} lovely lamps · +${lampScore(run).toLocaleString()} points`;
+  el("result-bullseyes").textContent =
+    `${run.bullseyes} bullseyes · +${(run.bullseyes * BULLSEYE_POINTS).toLocaleString()} points`;
   el("result-presents").textContent =
     `${run.presents.collected} birthday presents · +${run.presents.collected * PRESENT_POINTS} points`;
   el("new-best").hidden = !newBest;
@@ -313,6 +344,7 @@ try {
       accumulator += dt;
       while (accumulator >= 1 / 120 && mode === "playing") {
         stepRun(run, -input.update(1 / 120), 1 / 120, input.boosting);
+        recordSample(trace, run);
         if (run.lampEvent >= 0) {
           const id = run.lampIds[run.lampEvent];
           const isNew = collection.add(id);

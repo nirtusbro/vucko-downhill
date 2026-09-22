@@ -6,6 +6,7 @@ describe("hold-to-boost", () => {
     it(`adds meaningful speed while held in ${difficulty}`, () => {
       const normal = createRun(difficulty, 1),
         boosted = createRun(difficulty, 1);
+      normal.hazards = boosted.hazards = [];
       for (let tick = 0; tick < 480; tick++) {
         stepRun(normal, 0, 1 / 120);
         stepRun(boosted, 0, 1 / 120, true);

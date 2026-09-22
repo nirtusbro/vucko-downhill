@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createRun,
   stepRun,
+  lampScore,
   GATES,
   LAMPS_PER_RUN,
   FINISH_Z,
@@ -56,9 +57,10 @@ describe("skiing", () => {
     }
     expect(s.hits).toBe(4);
     expect(s.combo).toBe(4);
-    expect(s.score).toBe(1000);
+    expect(s.bullseyes).toBe(4);
+    expect(s.score).toBe(1200);
     stepRun(s, 0, 1 / 60);
-    expect(s.score).toBe(1000);
+    expect(s.score).toBe(1200);
   });
   it("missing a gate breaks combo but the run continues", () => {
     const s = createRun();
@@ -121,20 +123,26 @@ describe("skiing", () => {
     expect(s.finished).toBe(true);
     expect(s.hits).toBe(20);
     expect(s.lamps).toBe(LAMPS_PER_RUN);
-    expect(s.score).toBe(7800 + s.presents.collected * 200 + s.timeBonus);
-    expect(s.time).toBeGreaterThan(32);
+    expect(
+      s.score -
+        s.timeBonus -
+        s.presents.collected * 200 -
+        s.bullseyes * 50 -
+        lampScore(s),
+    ).toBe(13200);
+    expect(s.time).toBeGreaterThan(28);
     expect(s.time).toBeLessThan(45);
   });
   it("does not punish missed gates with a forced restart", () => {
     const s = advance(createRun(), 110);
     expect(s.finished).toBe(true);
     expect(s.hits).toBeLessThan(20);
-    expect(s.time).toBeGreaterThan(30);
-    expect(s.time).toBeLessThan(40);
+    expect(s.time).toBeGreaterThan(28);
+    expect(s.time).toBeLessThan(90);
   });
   it("keeps collision feedback when a tumble also crosses a missed gate", () => {
     const s = createRun();
-    s.x = OBSTACLES.find((o) => o.z === GATES[8].z)!.x;
+    s.x = 22;
     s.z = GATES[8].z - 0.1;
     s.nextGate = 8;
     s.speed = 18;

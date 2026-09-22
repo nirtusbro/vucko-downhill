@@ -9,19 +9,25 @@ import {
   LAMPS_PER_RUN,
   FINISH_Z,
 } from "../src/physics";
+import { lampDetourExtra, lampPoints } from "../src/lamp-catalog";
 
 describe("birthday lamp collection", () => {
   it("leaves clear skiing space between each gate and its optional bonus", () => {
-    for (const [i, lamp] of LAMP_SPOTS.entries()) {
-      expect(lamp.z).toBeGreaterThan(GATES[i].z + 15);
-      expect(lamp.z).toBeLessThan((GATES[i + 1]?.z ?? FINISH_Z) - 15);
+    expect(LAMP_SPOTS.length).toBeGreaterThanOrEqual(16);
+    for (const lamp of LAMP_SPOTS) {
+      expect(lamp.z).toBeGreaterThan(GATES[lamp.stretch].z + 15);
+      expect(lamp.z).toBeLessThan(
+        (GATES[lamp.stretch + 1]?.z ?? FINISH_Z) - 15,
+      );
     }
   });
   it("places lamps wide of the direct line between gates", () => {
     expect(LAMP_DETOUR).toBeGreaterThanOrEqual(5);
-    for (const [i, lamp] of LAMP_SPOTS.entries()) {
-      const next = GATES[i + 1] ?? { x: 0 };
-      expect(Math.abs(lamp.x - (GATES[i].x + next.x) / 2)).toBe(LAMP_DETOUR);
+    for (const lamp of LAMP_SPOTS) {
+      const next = GATES[lamp.stretch + 1] ?? { x: 0 };
+      expect(Math.abs(lamp.x - (GATES[lamp.stretch].x + next.x) / 2)).toBe(
+        LAMP_DETOUR,
+      );
     }
   });
   it("spreads a few lamps over the course, varying the spots between runs", () => {
@@ -38,12 +44,21 @@ describe("birthday lamp collection", () => {
         expect(indices[i] - indices[i - 1]).toBeLessThanOrEqual(5);
       }
       expect(indices[0]).toBeLessThanOrEqual(2);
-      expect(indices[indices.length - 1]).toBeGreaterThanOrEqual(18);
+      expect(indices[indices.length - 1]).toBeGreaterThanOrEqual(
+        LAMP_SPOTS.length - 2,
+      );
     }
     expect(seen.size).toBe(LAMP_SPOTS.length);
     expect(pickLampSpots(1)).not.toEqual(pickLampSpots(2));
     const run = createRun("classic", 7);
-    expect(run.lampSpots).toEqual(pickLampSpots(7));
+    expect(run.lampSpots.map((spot) => spot.stretch)).toEqual(
+      pickLampSpots(7).map((spot) => spot.stretch),
+    );
+    run.lampSpots.forEach((spot, i) => {
+      expect(Math.abs(spot.x - pickLampSpots(7)[i].x)).toBe(
+        lampDetourExtra(run.lampIds[i]),
+      );
+    });
     expect(run.collectedLamps).toHaveLength(LAMPS_PER_RUN);
     expect(run.lampIds).toHaveLength(LAMPS_PER_RUN);
   });
@@ -65,11 +80,13 @@ describe("birthday lamp collection", () => {
     stepRun(s, 0, 1 / 60);
     expect(s.lamps).toBe(1);
     expect(s.collectedLamps[0]).toBe(true);
-    expect(s.score).toBe(50);
+    const points = lampPoints(s.lampIds[0]);
+    expect(points).toBeGreaterThanOrEqual(50);
+    expect(s.score).toBe(points);
     expect(s.lampEvent).toBe(0);
     stepRun(s, 0, 1 / 60);
     expect(s.lamps).toBe(1);
-    expect(s.score).toBe(50);
+    expect(s.score).toBe(points);
     expect(s.lampEvent).toBe(-1);
   });
   it("does not collect a lamp when passing wide of it", () => {

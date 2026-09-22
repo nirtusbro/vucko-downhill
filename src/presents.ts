@@ -39,6 +39,7 @@ export function stepPresents(
   dt: number,
   gates: readonly { z: number }[],
   finishZ: number,
+  hazards: readonly { x: number; z: number }[] = [],
 ) {
   const state = run.presents;
   for (const gift of state.items) {
@@ -82,10 +83,18 @@ export function stepPresents(
   let z = run.z + Math.max(85, run.speed * (3.2 + random(state) * 0.5));
   for (const gate of gates) if (Math.abs(z - gate.z) < 12) z = gate.z + 12;
   if (z > finishZ - 18) return;
-  Object.assign(slot, {
-    phase: "falling",
-    x: random(state) * 22 - 11,
-    z,
-    age: 0,
-  });
+  // Land clear of rocks and trees, so no pickup ever needs a tumble.
+  const blocked = (x: number) =>
+    hazards.some(
+      (hazard) => Math.abs(hazard.z - z) < 6 && Math.abs(hazard.x - x) < 4,
+    );
+  let x = random(state) * 22 - 11;
+  if (blocked(x)) {
+    const rolled = x;
+    x =
+      [-9, -4.5, 0, 4.5, 9]
+        .sort((a, b) => Math.abs(a - rolled) - Math.abs(b - rolled))
+        .find((candidate) => !blocked(candidate)) ?? rolled;
+  }
+  Object.assign(slot, { phase: "falling", x, z, age: 0 });
 }
