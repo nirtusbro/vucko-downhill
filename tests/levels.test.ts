@@ -93,7 +93,6 @@ describe("20 hand-placed levels", () => {
     expect(last.gates.length).toBe(MAX_GATES);
     expect(last.goal).toBeGreaterThan(first.goal * 5);
     expect(last.speed).toBeGreaterThan(first.speed * 1.7);
-    expect(LEVEL_DESIGNS.filter((d) => d.needsBoost).length).toBe(2);
     expect(LEVEL_DESIGNS.filter((d) => d.weaves.length).length).toBeGreaterThanOrEqual(5);
     expect(LEVEL_DESIGNS.filter((d) => d.rockGates.length).length).toBeGreaterThanOrEqual(10);
     expect(LEVEL_DESIGNS.filter((d) => d.gates.some(([, gap]) => gap < 36)).length).toBeGreaterThanOrEqual(8);
@@ -113,15 +112,7 @@ describe("20 hand-placed levels", () => {
       ).toBe(c.maxGateScore);
       expect(plain.time).toBeGreaterThan(15);
       expect(plain.time).toBeLessThan(45);
-      if (c.needsBoost) {
-        // Even a perfect cruising run falls short; boosting on the straights makes it.
-        expect(plain.passed).toBe(false);
-        const boosted = createRun(level);
-        const b = drive(boosted, 0.18, 0.8, true);
-        expect(b.crashes).toBe(0);
-        expect(b.boostedSeconds).toBeGreaterThan(2);
-        expect(boosted.passed).toBe(true);
-      } else expect(plain.passed).toBe(true);
+      expect(plain.passed).toBe(true);
     }
   });
   it("keeps a straight, un-steered line from passing any level", () => {
@@ -159,9 +150,7 @@ describe("20 hand-placed levels", () => {
     expect(run.goal).toBe(run.course.goal);
     const summit = createRun(19, undefined, Array(100).fill(true));
     expect(summit.lampsAvailable).toBe(0);
-    expect(summit.goal).toBe(
-      summit.course.goal - summit.course.pickupLampIds.reduce((sum, id) => sum + lampPoints(id), 0),
-    );
+    expect(summit.goal).toBe(summit.course.goal);
   });
   it("keeps hazards clear of gate lines and pickups beside a fork rock", () => {
     for (let level = 0; level < LEVEL_COUNT; level++) {

@@ -1,8 +1,8 @@
 import { createPresents, stepPresents } from "./presents";
 import { lampPoints } from "./lamp-catalog";
 import {
-  BOOST_TURN_SCALE,
   BULLSEYE_POINTS,
+  CRASH_PENALTY,
   SLOPE_RAMP,
   STEER_RESPONSE,
   getCourse,
@@ -17,11 +17,12 @@ export interface Run {
   x: number;
   z: number;
   speed: number;
-  boosting: boolean;
   heading: number;
   time: number;
   nextGate: number;
   hits: number;
+  misses: number;
+  crashes: number;
   bullseyes: number;
   combo: number;
   score: number;
@@ -33,7 +34,7 @@ export interface Run {
   collectedLamps: boolean[];
   preCollected: boolean[];
   lampEvent: number;
-  /** The level goal for this run; boost levels drop the points of lamps already owned. */
+  /** The level goal for this run. */
   goal: number;
   presents: ReturnType<typeof createPresents>;
   crashTime: number;
@@ -44,7 +45,7 @@ export interface Run {
 }
 export const COMBO_CAP = 8;
 export const BULLSEYE_RADIUS = 1;
-export { BULLSEYE_POINTS };
+export { BULLSEYE_POINTS, CRASH_PENALTY };
 /** Edge scenery that still tumbles a skier who wanders wide. */
 export const OBSTACLES = Array.from({ length: 32 }, (_, i) => ({
   x: (i % 2 ? 1 : -1) * (17.5 + (i % 3) * 0.7),
@@ -72,21 +73,18 @@ export function createRun(
 ): Run {
   const course = getCourse(level);
   const preCollected = course.pickupLampIds.map((id) => owned[id] === true);
-  const ownedPoints = course.pickupLampIds.reduce(
-    (sum, id, i) => sum + (preCollected[i] ? lampPoints(id) : 0),
-    0,
-  );
   return {
     level: course.level,
     course,
     x: 0,
     z: 0,
     speed: course.speed * 0.5,
-    boosting: false,
     heading: 0,
     time: 0,
     nextGate: 0,
     hits: 0,
+    misses: 0,
+    crashes: 0,
     bullseyes: 0,
     combo: 0,
     score: 0,
@@ -97,7 +95,7 @@ export function createRun(
     collectedLamps: [...preCollected],
     preCollected,
     lampEvent: -1,
-    goal: course.needsBoost ? course.goal - ownedPoints : course.goal,
+    goal: course.goal,
     presents: createPresents(seed),
     crashTime: 0,
     invincible: 0,
@@ -109,14 +107,13 @@ export function createRun(
 const hits = (s: Run, o: { x: number; z: number; radius: number }) =>
   Math.abs(o.z - s.z) < o.radius + 0.6 &&
   Math.hypot(o.x - s.x, o.z - s.z) < o.radius + 0.65;
-export function stepRun(s: Run, input: number, dt: number, boost = false) {
+export function stepRun(s: Run, input: number, dt: number) {
   s.event = "";
   s.lampEvent = -1;
   s.gateBonus = 0;
   s.presents.event = false;
   if (s.finished || dt <= 0) return;
   const c = s.course;
-  s.boosting = boost && s.crashTime === 0;
   dt = Math.min(dt, 0.05);
   s.time += dt;
   s.invincible = Math.max(0, s.invincible - dt);
@@ -131,18 +128,14 @@ export function stepRun(s: Run, input: number, dt: number, boost = false) {
     s.heading *= Math.exp(-8 * dt);
     if (s.crashTime === 0) s.invincible = 2;
   } else {
-    const turnAngle = c.turnAngle * (s.boosting ? BOOST_TURN_SCALE : 1);
     s.heading +=
-      (clamp(input, -1, 1) * turnAngle - s.heading) *
+      (clamp(input, -1, 1) * c.turnAngle - s.heading) *
       (1 - Math.exp(-STEER_RESPONSE * dt));
     const targetSpeed =
-      c.speed *
-        (1 + SLOPE_RAMP * clamp(s.z / c.finishZ, 0, 1)) *
-        (s.boosting ? 1.45 : 1) -
+      c.speed * (1 + SLOPE_RAMP * clamp(s.z / c.finishZ, 0, 1)) -
       Math.abs(s.heading) * 6 +
       Math.sin(s.z * 0.015) * 0.8;
-    s.speed +=
-      (targetSpeed - s.speed) * (1 - Math.exp(-(s.boosting ? 2.4 : 1.1) * dt));
+    s.speed += (targetSpeed - s.speed) * (1 - Math.exp(-1.1 * dt));
     s.x +=
       (Math.sin(oldHeading) * oldSpeed + Math.sin(s.heading) * s.speed) *
       dt *
@@ -160,8 +153,9 @@ export function stepRun(s: Run, input: number, dt: number, boost = false) {
       c.hazards.some((o) => hits(s, o)))
   ) {
     s.crashTime = 1.1;
-    s.boosting = false;
     s.combo = 0;
+    s.crashes++;
+    s.score = Math.max(0, s.score - CRASH_PENALTY);
     s.event = "crash";
   }
   if (s.crashTime === 0) {
@@ -213,6 +207,7 @@ export function stepRun(s: Run, input: number, dt: number, boost = false) {
       s.event = "gate";
     } else {
       s.combo = 0;
+      s.misses++;
       if (s.event !== "crash") s.event = "miss";
     }
     s.nextGate++;
@@ -222,8 +217,8 @@ export function stepRun(s: Run, input: number, dt: number, boost = false) {
     s.finished = true;
     s.timeBonus = finishTimeBonus(s.time, c.parTime, c.timeBonusRate);
     s.score += s.timeBonus;
-    s.passed = s.score >= s.goal;
-    s.boosting = false;
+    // A level is only passed clean: every gate, and the goal score.
+    s.passed = s.misses === 0 && s.score >= s.goal;
     s.event = "finish";
   }
 }

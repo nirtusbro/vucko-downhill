@@ -13,78 +13,73 @@ class Surface extends EventTarget {
     this.captured.delete(id);
   }
 }
-function pointer(surface: EventTarget, type: string, id: number, x: number) {
+function pointer(surface: EventTarget, type: string, id: number, x: number, y = 600) {
   const event = new Event(type, { cancelable: true });
   Object.assign(event, {
     pointerId: id,
     pointerType: "touch",
     button: 0,
     clientX: x,
-    clientY: 600,
+    clientY: y,
   });
   surface.dispatchEvent(event);
 }
-describe("two-thumb controls", () => {
-  let canvas: Surface,
-    button: Surface,
-    windowTarget: EventTarget,
-    input: SkiInput;
+describe("thumb steering", () => {
+  let canvas: Surface, windowTarget: EventTarget, input: SkiInput;
   beforeEach(() => {
     windowTarget = new EventTarget();
     vi.stubGlobal("window", windowTarget);
     vi.stubGlobal("innerHeight", 844);
     vi.stubGlobal("innerWidth", 390);
     canvas = new Surface();
-    button = new Surface();
-    input = new SkiInput(
-      canvas as unknown as HTMLCanvasElement,
-      button as unknown as HTMLButtonElement,
-    );
+    input = new SkiInput(canvas as unknown as HTMLCanvasElement);
     input.enabled = true;
   });
   afterEach(() => vi.unstubAllGlobals());
-  it("holds boost with the left thumb while the right thumb steers independently", () => {
-    pointer(button, "pointerdown", 1, 60);
+  it("steers by dragging and straightens on release", () => {
     pointer(canvas, "pointerdown", 2, 280);
     pointer(canvas, "pointermove", 2, 340);
-    expect(input.boosting).toBe(true);
-    expect(input.update(0.1)).toBeGreaterThan(0.3);
-    pointer(button, "pointerup", 1, 60);
-    expect(input.boosting).toBe(false);
     expect(input.engaged).toBe(true);
     expect(input.update(0.1)).toBeGreaterThan(0.3);
-  });
-  it("can start boost after steering and releasing steering does not cancel boost", () => {
-    pointer(canvas, "pointerdown", 2, 280);
-    pointer(button, "pointerdown", 1, 60);
-    pointer(canvas, "pointercancel", 2, 280);
+    pointer(canvas, "pointerup", 2, 340);
     expect(input.engaged).toBe(false);
-    expect(input.boosting).toBe(true);
-    pointer(button, "lostpointercapture", 1, 60);
-    expect(input.boosting).toBe(false);
+    for (let i = 0; i < 20; i++) input.update(0.1);
+    expect(Math.abs(input.update(0.1))).toBeLessThan(0.05);
   });
-  it("clears both touches on pause/reset and ignores input while disabled", () => {
+  it("ignores touches near the top of the screen and a second finger", () => {
+    pointer(canvas, "pointerdown", 1, 200, 100);
+    expect(input.engaged).toBe(false);
     pointer(canvas, "pointerdown", 2, 280);
-    pointer(button, "pointerdown", 1, 60);
+    pointer(canvas, "pointerdown", 3, 100);
+    pointer(canvas, "pointermove", 3, 40);
+    expect(input.update(0.1)).toBe(0);
+    pointer(canvas, "pointermove", 2, 340);
+    expect(input.update(0.1)).toBeGreaterThan(0);
+  });
+  it("clears the touch on pause/reset and ignores input while disabled", () => {
+    pointer(canvas, "pointerdown", 2, 280);
     input.reset();
     input.enabled = false;
-    expect(input.boosting).toBe(false);
-    expect(canvas.captured.size + button.captured.size).toBe(0);
-    pointer(button, "pointerdown", 3, 60);
-    expect(input.boosting).toBe(false);
+    expect(canvas.captured.size).toBe(0);
+    pointer(canvas, "pointerdown", 3, 280);
+    expect(input.engaged).toBe(false);
   });
-  it("supports holding Space and releases it on keyup or window blur", () => {
-    const key = (type: string) => {
+  it("steers with the arrow keys and releases on keyup or window blur", () => {
+    const key = (type: string, name: string) => {
       const event = new Event(type, { cancelable: true });
-      Object.assign(event, { key: " " });
+      Object.assign(event, { key: name });
       windowTarget.dispatchEvent(event);
     };
-    key("keydown");
-    expect(input.boosting).toBe(true);
-    key("keyup");
-    expect(input.boosting).toBe(false);
-    key("keydown");
+    key("keydown", "ArrowRight");
+    expect(input.update(0.2)).toBeGreaterThan(0.5);
+    key("keyup", "ArrowRight");
+    for (let i = 0; i < 20; i++) input.update(0.1);
+    expect(Math.abs(input.update(0.1))).toBeLessThan(0.05);
+    key("keydown", "a");
+    expect(input.update(0.2)).toBeLessThan(-0.5);
     windowTarget.dispatchEvent(new Event("blur"));
-    expect(input.boosting).toBe(false);
+    expect(input.update(0.1)).toBe(0);
+    key("keydown", " ");
+    expect(input.update(0.1)).toBe(0);
   });
 });

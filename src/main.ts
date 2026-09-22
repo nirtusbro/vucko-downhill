@@ -6,6 +6,7 @@ import {
   lampScore,
   BULLSEYE_POINTS,
   COMBO_CAP,
+  CRASH_PENALTY,
 } from "./physics";
 import { LEVEL_COUNT, getCourse } from "./levels";
 import { SkiInput } from "./input";
@@ -28,8 +29,7 @@ import {
 const el = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
 const canvas = el<HTMLCanvasElement>("game");
-const boostButton = el<HTMLButtonElement>("boost");
-const input = new SkiInput(canvas, boostButton);
+const input = new SkiInput(canvas);
 const progress = new LevelProgress();
 const levelMap = new LevelMap(progress);
 let level = progress.unlocked;
@@ -75,7 +75,9 @@ function refreshHome() {
   const art = el("home-lamp-art");
   art.innerHTML = lampArt(lamp);
   art.className = earned ? "home-lamp owned" : "home-lamp undiscovered";
-  el("home-lamp-name").textContent = earned ? lamp.name : "Reach the goal to earn this lamp";
+  el("home-lamp-name").textContent = earned
+    ? lamp.name
+    : "Clear every gate and reach the goal to earn this lamp";
   el("home-pickups").innerHTML = course.pickupLampIds
     .map(
       (id) =>
@@ -107,9 +109,6 @@ function changeMode(next: string) {
   mode = next;
   input.enabled = mode === "playing";
   input.reset();
-  run.boosting = false;
-  boostButton.classList.remove("active");
-  boostButton.setAttribute("aria-pressed", "false");
   for (const id of [
     "menu",
     "hud",
@@ -151,16 +150,16 @@ function updateHud() {
   }
   paceEl.hidden = !ghost;
   scoreEl.textContent = run.score.toLocaleString();
-  goalEl.textContent = `Goal ${run.goal.toLocaleString()}`;
-  goalEl.classList.toggle("reached", run.score >= run.goal);
+  goalEl.textContent = run.misses
+    ? "Gate missed · no finish lamp this run"
+    : `Goal ${run.goal.toLocaleString()}`;
+  goalEl.classList.toggle("reached", !run.misses && run.score >= run.goal);
+  goalEl.classList.toggle("missed", run.misses > 0);
   lampsEl.textContent = `${run.lamps} / ${run.lampsAvailable}`;
   el("present-count").textContent = String(run.presents.collected);
   gatesEl.textContent = `${run.hits} / ${run.course.gates.length}`;
   progressEl.style.width = `${(run.z / run.course.finishZ) * 100}%`;
   speedEl.innerHTML = `${Math.round(run.speed * 3.6)} <small>km/h</small>`;
-  boostButton.classList.toggle("active", run.boosting);
-  boostButton.setAttribute("aria-pressed", String(run.boosting));
-  el("boost-label").textContent = run.boosting ? "Boosting" : "Speed up";
 }
 function start() {
   if (!scene) return;
@@ -185,7 +184,7 @@ function start() {
   tutorial = !readValue("learned", "");
   tutorialEl.hidden = !tutorial;
   tutorialEl.querySelector("p")!.textContent =
-    "Right thumb to steer · hold Speed up with your left";
+    "Drag left and right with your thumb to carve";
   tutorialEl.querySelector("span")!.hidden = false;
   audio.play("start");
 }
@@ -312,8 +311,8 @@ function event(name: string) {
     name === "gate"
       ? `+${100 * run.combo + run.gateBonus}${run.gateBonus ? " · BULLSEYE" : ""}`
       : name === "miss"
-        ? "Next one is yours"
-        : "A little snow hug!";
+        ? "Gate missed · the lamp needs every gate"
+        : `A little snow hug! −${CRASH_PENALTY}`;
   feedback.className = name === "gate" ? "show" : "show miss";
   feedbackUntil = elapsed + 1.25;
   combo.textContent =
@@ -342,8 +341,10 @@ function finish() {
   el("result-par").textContent =
     `${course.timeBonusRate} points per second under ${course.parTime} seconds`;
   el("result-goal").textContent = run.passed
-    ? `Goal ${run.goal.toLocaleString()} reached`
-    : `Goal ${run.goal.toLocaleString()} · ${(run.goal - run.score).toLocaleString()} short`;
+    ? `Every gate cleared · goal ${run.goal.toLocaleString()} reached`
+    : run.misses
+      ? `${run.misses} gate${run.misses === 1 ? "" : "s"} missed · every gate is needed${run.score < run.goal ? ` · ${(run.goal - run.score).toLocaleString()} short of the goal` : ""}`
+      : `Goal ${run.goal.toLocaleString()} · ${(run.goal - run.score).toLocaleString()} short`;
   el("result-goal").className = run.passed ? "result-goal passed" : "result-goal";
   el("result-gates").textContent = `${run.hits} / ${course.gates.length}`;
   el("result-best").textContent = progress.best[level].toLocaleString();
@@ -365,9 +366,22 @@ function finish() {
   el("result-presents").textContent =
     `${run.presents.collected} birthday presents · +${run.presents.collected * PRESENT_POINTS} points`;
   el("result-bullseyes").textContent =
-    `${run.bullseyes} bullseyes · +${(run.bullseyes * BULLSEYE_POINTS).toLocaleString()} points`;
+    `${run.bullseyes} bullseyes · +${(run.bullseyes * BULLSEYE_POINTS).toLocaleString()} points${run.crashes ? ` · ${run.crashes} tumble${run.crashes === 1 ? "" : "s"} · −${(run.crashes * CRASH_PENALTY).toLocaleString()}` : ""}`;
   el("new-best").hidden = !newBest;
-  el("next-level").hidden = !(run.passed && level + 1 < LEVEL_COUNT);
+  const hasNext = run.passed && level + 1 < LEVEL_COUNT;
+  el("next-level").hidden = !hasNext;
+  const nextCard = el("result-next");
+  nextCard.hidden = !hasNext;
+  if (hasNext) {
+    const next = getCourse(level + 1),
+      nextLamp = LAMP_CATALOG[next.lampId];
+    el("result-next-title").textContent = `Next: Level ${level + 2} · ${next.name}`;
+    el("result-next-hint").textContent = next.hint;
+    el("result-next-art").innerHTML = lampArt(nextLamp);
+    el("result-next-art").className = `result-next-art ${progress.lamps[next.lampId] ? "owned" : "undiscovered"}`;
+    el("result-next-detail").textContent =
+      `${next.gates.length} gates · goal ${next.goal.toLocaleString()} · ${nextLamp.rarity} lamp`;
+  }
   el("again").textContent = run.passed ? "Ski it again" : "Try again";
   changeMode("finished");
 }
@@ -394,7 +408,7 @@ try {
     if (mode === "playing") {
       accumulator += dt;
       while (accumulator >= 1 / 120 && mode === "playing") {
-        stepRun(run, -input.update(1 / 120), 1 / 120, input.boosting);
+        stepRun(run, -input.update(1 / 120), 1 / 120);
         recordSample(trace, run);
         if (run.lampEvent >= 0) event("lamp");
         if (run.presents.event) event("present");

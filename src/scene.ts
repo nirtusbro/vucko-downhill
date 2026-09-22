@@ -288,7 +288,7 @@ export class SkiScene {
     root.position.set(pose.x, snowHeight(pose.z) + 0.03, pose.z);
     root.rotation.set(0.1, pose.heading, 0);
     this.ghost.animate(
-      { crashTime: 0, heading: pose.heading, boosting: false },
+      { crashTime: 0, heading: pose.heading },
       elapsed,
       mode,
     );

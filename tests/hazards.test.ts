@@ -44,7 +44,7 @@ describe("course hazards", () => {
         expect(tree.z).toBeGreaterThanOrEqual(c.gates[spot.stretch].z + 12);
         expect(tree.z).toBeLessThanOrEqual(spot.z - 3);
       }
-      if (level < 6) expect(c.hazards.some((h) => h.kind === "tree")).toBe(false);
+      if (level < 3) expect(c.hazards.some((h) => h.kind === "tree")).toBe(false);
     }
     expect(trees).toBeGreaterThan(3);
   });

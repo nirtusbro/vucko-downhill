@@ -354,6 +354,45 @@ h1 span {
   color: #7fe3a8;
   opacity: 1;
 }
+.goal.missed {
+  color: #ffb0a0;
+  opacity: 1;
+}
+.result-next {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #163d59;
+  color: #f2f8ff;
+  text-align: left;
+}
+.result-next .lamp-art {
+  width: 46px;
+  height: 52px;
+  display: block;
+  flex: none;
+}
+.result-next-art.undiscovered .lamp-art {
+  filter: brightness(0) invert(1) !important;
+  opacity: 0.85 !important;
+}
+.result-next-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.result-next-text strong {
+  font-size: 13px;
+}
+.result-next-text small {
+  font-size: 10px;
+  opacity: 0.75;
+}
 .level-card {
   display: flex;
   align-items: center;
@@ -1181,56 +1220,6 @@ h1 span {
   align-items: center;
   gap: 7px;
 }
-.boost-button {
-  position: absolute;
-  left: max(26px, env(safe-area-inset-left, 0px));
-  bottom: calc(94px + var(--safe-bottom));
-  width: 100px;
-  height: 100px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  border-radius: 30px;
-  border: 2px solid #fffc;
-  background: #f7cf79ec;
-  color: #715323;
-  box-shadow:
-    0 5px 0 #c39954,
-    0 8px 20px #795c2420;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-  transition:
-    background 0.15s,
-    box-shadow 0.15s;
-}
-.boost-button svg {
-  width: 29px;
-  height: 29px;
-  fill: currentColor;
-  pointer-events: none;
-}
-.boost-button strong {
-  font-size: 13px;
-  font-weight: 1000;
-  pointer-events: none;
-}
-.boost-button small {
-  font-size: 10px;
-  opacity: 0.7;
-  pointer-events: none;
-}
-.boost-button.active {
-  background: #f3a849;
-  color: #543616;
-  box-shadow:
-    0 2px 0 #bb8543,
-    0 0 30px #f0b74c80;
-  transform: translateY(3px);
-}
 .steer-hint {
   position: absolute;
   right: max(29px, env(safe-area-inset-right, 0px));
@@ -1251,31 +1240,11 @@ h1 span {
   bottom: calc(215px + var(--safe-bottom));
 }
 @media (hover: hover) and (pointer: fine) {
-  .boost-button small {
-    font-size: 0;
-  }
-  .boost-button small::after {
-    content: "Hold / Space";
-    font-size: 9px;
-  }
   .steer-hint {
     display: none;
   }
 }
 @media (max-height: 600px) and (orientation: landscape) {
-  .boost-button {
-    bottom: calc(55px + var(--safe-bottom));
-    width: 78px;
-    height: 78px;
-    border-radius: 24px;
-  }
-  .boost-button svg {
-    width: 24px;
-    height: 24px;
-  }
-  .boost-button strong {
-    font-size: 11px;
-  }
   .steer-hint {
     bottom: calc(65px + var(--safe-bottom));
   }

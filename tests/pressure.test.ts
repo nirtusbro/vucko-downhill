@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createRun, stepRun, COMBO_CAP } from "../src/physics";
-import { BOOST_TURN_SCALE, SLOPE_RAMP, getCourse } from "../src/levels";
+import { SLOPE_RAMP, getCourse } from "../src/levels";
 
 describe("precision and pressure", () => {
   it("awards a bullseye bonus only through the middle of a gate", () => {
@@ -40,26 +40,14 @@ describe("precision and pressure", () => {
     expect(run.hits).toBe(10);
     expect(run.combo).toBe(8);
   });
-  it("widens turns while boosting", () => {
-    expect(BOOST_TURN_SCALE).toBeLessThan(0.8);
-    const cruise = createRun(6, 1),
-      boosted = createRun(6, 1);
-    for (const run of [cruise, boosted]) run.course = { ...run.course, hazards: [] };
-    for (let i = 0; i < 120; i++) {
-      stepRun(cruise, 1, 1 / 120);
-      stepRun(boosted, 1, 1 / 120, true);
-    }
-    expect(Math.abs(boosted.heading)).toBeLessThan(Math.abs(cruise.heading) * 0.8);
-    expect(boosted.speed).toBeGreaterThan(cruise.speed);
-  });
   it("tightens the gates within a level and steepens the slope toward the finish", () => {
-    const course = getCourse(8);
+    const course = getCourse(3);
     const last = course.gates[course.gates.length - 1];
     expect(last.width).toBeLessThan(course.gates[0].width * 0.9);
     expect(last.width).toBeGreaterThan(course.gates[0].width * 0.7);
     expect(SLOPE_RAMP).toBeGreaterThan(0.05);
-    const early = createRun(8, 1),
-      late = createRun(8, 1);
+    const early = createRun(3, 1),
+      late = createRun(3, 1);
     for (const run of [early, late]) run.course = { ...run.course, hazards: [] };
     // Same phase of the gentle undulation so only the ramp differs.
     late.z = (2 * Math.PI) / 0.015;

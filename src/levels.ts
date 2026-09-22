@@ -1,5 +1,3 @@
-import { lampPoints } from "./lamp-catalog";
-
 export const LEVEL_COUNT = 20;
 export const MAX_GATES = 26;
 /** Lamps tied to each level: four collectible on the slope, one earned at the finish. */
@@ -9,8 +7,6 @@ export const MAX_PICKUPS = PICKUPS_PER_LEVEL;
 /** Longest course any level can produce; scenery is laid out to cover it. */
 export const MAX_COURSE_LENGTH = 1150;
 export const STEER_RESPONSE = 4.4;
-/** Boosting widens the turning arc, so full speed through a tight section is a gamble. */
-export const BOOST_TURN_SCALE = 0.72;
 /** The slope steepens toward the finish: cruising speed rises by this fraction. */
 export const SLOPE_RAMP = 0.08;
 /** Every level's authored cruising speed is scaled by this; 1.15 made the whole game 15% faster. */
@@ -78,20 +74,17 @@ export interface LevelDesign {
   rockGates: number[];
   /** Stretches that end in a weave: three rocks alternating sides on the way in. */
   weaves: number[];
-  /** Goal as a share of the maximum gate score; boost levels derive their own. */
+  /** Goal as a share of the maximum gate score. */
   goalFraction: number;
   /** Par time as a multiple of the course length at cruising speed. */
   parFactor: number;
   /** Points per second under par. Sprint levels pay far more for speed. */
   timeBonusRate: number;
-  /** Whether the goal is meant to be out of reach without boosting. */
-  needsBoost: boolean;
 }
 export interface Course {
   level: number;
   name: string;
   hint: string;
-  needsBoost: boolean;
   /** The lamp earned by passing the level. */
   lampId: number;
   /** The lamp each pickup spot holds, in slope order. */
@@ -110,8 +103,8 @@ export interface Course {
   goal: number;
 }
 export const BULLSEYE_POINTS = 50;
-/** Seconds under par a boost level demands beyond a perfect cruising run. */
-export const BOOST_LEVEL_SECONDS = 1;
+/** Points lost on every tumble, on top of the broken combo and the lost speed. */
+export const CRASH_PENALTY = 300;
 export const FORK_ROCK_RADIUS = 1.2;
 export const GUARD_TREE_RADIUS = 0.9;
 export const WIDE_ROCK_RADIUS = 1;
@@ -137,7 +130,6 @@ const base: Omit<LevelDesign, "name" | "hint" | "gates" | "lamps"> = {
   goalFraction: 0.6,
   parFactor: 1.3,
   timeBonusRate: 50,
-  needsBoost: false,
 };
 const design = (
   name: string,
@@ -171,28 +163,44 @@ export const LEVEL_DESIGNS: LevelDesign[] = [
     lamps: [1, 3, 8, 10],
     lineRocks: [5, 6],
   }),
+  design("Squeeze", "Two funnels that close in and narrow, a double, a chicane and a rock gate.", {
+    baseWidth: 7.4, speed: 26, turnAngle: 0.88, pickupRadius: 1.95, detour: 5.2, lampFraction: 0.46, goalFraction: 0.66, parFactor: 1.22,
+    gates: [[-4, 60], [5, 44], [-5, 42, 0.95], [5, 40, 0.9], [-4.5, 38, 0.85], [4, 36, 0.8], [-3.8, 34, 0.75], [6, 44], [-6, 44], [5.5, 42, 0.95], [-5, 40, 0.9], [4.5, 38, 0.85], [-4, 36, 0.8], [3.5, 33, 0.75], [-6.5, 44, 0.9], [6, 44, 0.85]],
+    lamps: [0, 7, 8, 14],
+    guards: [1],
+    rockGates: [13],
+    wideRocks: [1, 9],
+  }),
+  design("Halfway sprint", "A tight par and a high rate. Carry speed: every second under par pays.", {
+    baseWidth: 7.3, speed: 27, turnAngle: 0.89, pickupRadius: 1.95, detour: 5.2, lampFraction: 0.45, goalFraction: 0.68, parFactor: 1.1, timeBonusRate: 120,
+    gates: [[-3.5, 60], [3.5, 50], [-4, 50], [4, 50], [-3.5, 30], [4.2, 30], [-6, 50], [6, 50], [-9.5, 46], [9.5, 46], [-4, 48], [4, 48], [-4, 48], [3.5, 30], [-4, 30], [5, 50]],
+    lamps: [0, 2, 6, 10],
+    guards: [2],
+    rockGates: [12],
+    wideRocks: [7, 11],
+  }),
   design("Hold the line", "Pairs on the same side with a rock between them, then a snap back.", {
-    baseWidth: 7.4, speed: 26, turnAngle: 0.84, pickupRadius: 2.2, goalFraction: 0.66, parFactor: 1.26,
+    baseWidth: 7.2, speed: 28, turnAngle: 0.84, pickupRadius: 2.2, goalFraction: 0.68, parFactor: 1.26,
     gates: [[4, 60], [-4.5, 46], [5, 46], [8.5, 42], [-5, 46], [-8.5, 42], [5, 44], [-5, 44], [5, 44], [1.5, 42], [-6, 46], [6, 44], [-6, 44]],
     lamps: [0, 5, 6, 11],
     lineRocks: [2, 4, 8],
     wideRocks: [1, 7, 9],
   }),
   design("Light touch", "Chicanes of quick flicks that narrow as they go. Small inputs only.", {
-    baseWidth: 7.2, speed: 27, turnAngle: 0.85, pickupRadius: 2.1, goalFraction: 0.66, parFactor: 1.24,
+    baseWidth: 7.1, speed: 28.5, turnAngle: 0.85, pickupRadius: 2.1, goalFraction: 0.7, parFactor: 1.24,
     gates: [[-4, 60], [4.5, 46], [-4.5, 45], [3, 30, 0.95], [-4.2, 30, 0.9], [3, 30, 0.85], [-5, 45], [5, 45], [-2.5, 30, 0.95], [4.7, 30, 0.9], [-2.5, 30, 0.85], [5, 45], [-5.5, 45], [5, 45]],
     lamps: [0, 5, 10, 12],
     wideRocks: [1, 6, 11],
   }),
   design("Read ahead", "Rock gates on the way into flags, each narrower and later than the last.", {
-    baseWidth: 7.2, speed: 28, turnAngle: 0.86, pickupRadius: 2.1, detour: 5, goalFraction: 0.68, parFactor: 1.24,
+    baseWidth: 7, speed: 29, turnAngle: 0.86, pickupRadius: 2.1, detour: 5, goalFraction: 0.7, parFactor: 1.24,
     gates: [[4, 60], [-4, 45], [4.5, 45], [-5, 45], [5, 45], [-5.5, 45], [6, 44], [-6, 44], [-1, 40], [6.5, 44], [-6, 44], [6.5, 44], [-6.5, 44], [6, 44]],
     lamps: [0, 4, 9, 12],
     rockGates: [2, 7, 11],
     wideRocks: [1, 5, 6],
   }),
   design("Guarded lights", "Trees guard the lamps, and rock-strewn staircases cross the slope.", {
-    baseWidth: 7, speed: 29, turnAngle: 0.87, pickupRadius: 2, detour: 5.2, goalFraction: 0.7, parFactor: 1.24,
+    baseWidth: 6.9, speed: 29.5, turnAngle: 0.87, pickupRadius: 2, detour: 5.2, goalFraction: 0.72, parFactor: 1.24,
     gates: [[-8, 60], [-4, 42], [0, 40], [4, 40], [8, 40], [-5, 46], [5, 44], [1, 40], [-3, 40], [-7, 40], [8, 44], [-7, 44], [6, 44], [-6, 44], [6, 44]],
     lamps: [4, 9, 11, 13],
     guards: [0, 1, 2, 3],
@@ -201,28 +209,12 @@ export const LEVEL_DESIGNS: LevelDesign[] = [
     wideRocks: [10, 12],
   }),
   design("Commit", "Hairpins from edge to edge. Start the turn before you think you need to.", {
-    baseWidth: 6.9, speed: 29.5, turnAngle: 0.88, pickupRadius: 2, detour: 5.2, lampFraction: 0.46, goalFraction: 0.7, parFactor: 1.24,
+    baseWidth: 6.8, speed: 30, turnAngle: 0.88, pickupRadius: 2, detour: 5.2, lampFraction: 0.46, goalFraction: 0.72, parFactor: 1.24,
     gates: [[-9, 60], [9, 44], [-4, 44], [9.5, 44], [-9.5, 44], [4, 44], [-9, 44], [9, 44], [-3.5, 44], [9.5, 44], [-9.5, 44], [4.5, 44], [-9, 44], [9, 44], [-8, 44]],
     lamps: [2, 5, 8, 11],
     guards: [1, 2],
     rockGates: [9],
     wideRocks: [0, 4, 7, 13],
-  }),
-  design("Squeeze", "Two funnels that close in and narrow, a double, a chicane and a rock gate.", {
-    baseWidth: 6.8, speed: 30, turnAngle: 0.88, pickupRadius: 1.95, detour: 5.2, lampFraction: 0.46, goalFraction: 0.74, parFactor: 1.22,
-    gates: [[-4, 60], [5, 44], [-5, 42, 0.95], [5, 40, 0.9], [-4.5, 38, 0.85], [4, 36, 0.8], [-3.8, 34, 0.75], [6, 44], [-6, 44], [5.5, 42, 0.95], [-5, 40, 0.9], [4.5, 38, 0.85], [-4, 36, 0.8], [3.5, 33, 0.75], [-6.5, 44, 0.9], [6, 44, 0.85]],
-    lamps: [0, 7, 8, 14],
-    guards: [1],
-    rockGates: [13],
-    wideRocks: [1, 9],
-  }),
-  design("Halfway sprint", "A tight par and a high rate. Boost every straight you trust.", {
-    baseWidth: 6.8, speed: 31, turnAngle: 0.89, pickupRadius: 1.95, detour: 5.2, lampFraction: 0.45, goalFraction: 0.78, parFactor: 1.1, timeBonusRate: 120,
-    gates: [[-3.5, 60], [3.5, 50], [-4, 50], [4, 50], [-3, 30], [4.2, 30], [-6, 50], [6, 50], [-9.5, 46], [9.5, 46], [-4, 48], [4, 48], [-4, 48], [3.5, 30], [-4, 30], [5, 50]],
-    lamps: [0, 2, 6, 10],
-    guards: [2],
-    rockGates: [12],
-    wideRocks: [7, 11],
   }),
   design("The long run", "Twenty-two gates of everything so far. Keep the combo alive.", {
     baseWidth: 6.6, speed: 32, turnAngle: 0.9, pickupRadius: 1.9, detour: 5.4, lampFraction: 0.44, goalFraction: 0.74, parFactor: 1.22,
@@ -269,8 +261,8 @@ export const LEVEL_DESIGNS: LevelDesign[] = [
     rockGates: [9, 15],
     wideRocks: [3, 12, 17],
   }),
-  design("Speed run", "Gates alone will not do it. Boost the straights and take every lamp.", {
-    baseWidth: 6.1, speed: 35.5, turnAngle: 0.94, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.41, goalFraction: 1, parFactor: 1.02, timeBonusRate: 250, needsBoost: true,
+  design("Speed run", "A tight par and a near-perfect goal. Carry speed and take every lamp.", {
+    baseWidth: 6.1, speed: 35.5, turnAngle: 0.94, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.41, goalFraction: 0.94, parFactor: 1.1, timeBonusRate: 250,
     gates: [[-2.5, 60], [6.8, 44], [-6.3, 44], [6.2, 44], [-4.6, 44], [9.5, 44], [-9.5, 44], [4, 44], [-7, 44], [5, 44], [8.4, 40], [-6, 44], [6, 44], [-5.5, 44], [9.5, 44], [-9.5, 44], [4.4, 44], [-6.5, 44], [4.4, 44], [-5.3, 44], [9.5, 44], [-9.5, 44]],
     lamps: [0, 6, 12, 18],
     guards: [1],
@@ -304,8 +296,8 @@ export const LEVEL_DESIGNS: LevelDesign[] = [
     rockGates: [1, 16, 22],
     wideRocks: [3, 8, 18, 24],
   }),
-  design("The summit", "Every gate, every lamp, and boost wherever you dare. Nothing less will do.", {
-    baseWidth: 5.5, speed: 40, turnAngle: 0.96, pickupRadius: 1.8, detour: 6, lampFraction: 0.38, goalFraction: 1, parFactor: 1.02, timeBonusRate: 250, needsBoost: true,
+  design("The summit", "Every gate, every lamp, and no tumbles. Nothing less will do.", {
+    baseWidth: 5.5, speed: 40, turnAngle: 0.96, pickupRadius: 1.8, detour: 6, lampFraction: 0.38, goalFraction: 0.97, parFactor: 1.1, timeBonusRate: 250,
     gates: [[4, 60], [-7.8, 42], [8.5, 42], [-6.7, 45], [9.5, 42], [-9.5, 42], [-3.5, 40], [3, 40], [-3, 40], [3.5, 42], [-3, 42], [3, 30], [-3, 30], [3, 30], [-3.5, 42], [-9.5, 45], [9.5, 42], [-7.4, 42], [6.1, 42], [-3.1, 40, 0.95], [3, 38, 0.92], [-2.8, 36, 0.9], [5.7, 42], [-5.4, 45], [4.6, 42], [-9.5, 42]],
     lamps: [0, 6, 13, 21],
     guards: [0, 2, 3],
@@ -416,24 +408,14 @@ export function buildCourse(level: number): Course {
   hazards.sort((a, b) => a.z - b.z);
   const maxGateScore = gates.reduce((sum, _, i) => sum + 100 * Math.min(8, i + 1), 0);
   const lamps = levelLamps(level);
-  // A boost level sets its goal above a perfect cruising run: every gate
-  // dead centre, every lamp, and nothing to spare on time. Only seconds under
-  // par, which means boosting, can make up the difference.
-  const perfectCruise =
-    maxGateScore +
-    BULLSEYE_POINTS * gates.length +
-    lamps.pickups.slice(0, lampSpots.length).reduce((sum, id) => sum + lampPoints(id), 0);
   const speed = Math.round(S.speed * SPEED_SCALE * 10) / 10;
   const parTime = Math.round((finishZ / speed) * S.parFactor + 2);
-  const goal = S.needsBoost
-    ? Math.round((perfectCruise + S.timeBonusRate * BOOST_LEVEL_SECONDS) / 50) * 50
-    : Math.round((S.goalFraction * maxGateScore) / 50) * 50;
+  const goal = Math.round((S.goalFraction * maxGateScore) / 50) * 50;
   void quick;
   return {
     level,
     name: S.name,
     hint: S.hint,
-    needsBoost: S.needsBoost,
     lampId: lamps.finish,
     pickupLampIds: lamps.pickups.slice(0, lampSpots.length),
     gates,

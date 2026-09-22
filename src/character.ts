@@ -248,7 +248,7 @@ export class Vucko {
     );
   }
   animate(
-    s: Pick<Run, "crashTime" | "heading" | "boosting">,
+    s: Pick<Run, "crashTime" | "heading">,
     t: number,
     mode: string,
   ) {
@@ -261,7 +261,7 @@ export class Vucko {
           ? Math.max(0, Math.sin(t * 7)) * 0.24
           : Math.sin(t * 7) * 0.02 - Math.abs(s.heading) * 0.13;
     this.body.rotation.z = -s.heading * 0.36;
-    this.body.rotation.x = s.boosting ? 0.26 : 0;
+    this.body.rotation.x = 0;
     this.head.rotation.y = menu
       ? -0.6 + Math.sin(t * 0.7) * 0.1
       : celebrating
@@ -273,11 +273,7 @@ export class Vucko {
       a.rotation.z = celebrating
         ? (i ? 1 : -1) * 2.4
         : Math.sin(t * 5 + i) * 0.08 - s.heading * 0.16;
-      a.rotation.x = celebrating
-        ? -0.5
-        : s.boosting
-          ? -0.55
-          : Math.abs(s.heading) * 0.15;
+      a.rotation.x = celebrating ? -0.5 : Math.abs(s.heading) * 0.15;
     });
     this.scarf.forEach((bit, i) => {
       bit.position.x =

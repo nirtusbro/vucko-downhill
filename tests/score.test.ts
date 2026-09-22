@@ -28,7 +28,7 @@ describe("finish time scoring", () => {
   });
   it("awards no time points before finishing", () => {
     const run = createRun(0);
-    for (let i = 0; i < 60; i++) stepRun(run, 0, 1 / 120, true);
+    for (let i = 0; i < 60; i++) stepRun(run, 0, 1 / 120);
     expect(run.timeBonus).toBe(0);
     expect(run.score).toBe(0);
   });

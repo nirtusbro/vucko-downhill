@@ -74,7 +74,7 @@
           <button id="play" class="primary"><span id="play-label">Ski level 1</span> <span>↗</span></button
           ><button id="how" class="text-button">How to play</button>
           <p class="desktop-hint">
-            ← → to carve <span>·</span> Hold Space to boost
+            ← → or A / D to carve
           </p>
         </div>
         <div class="menu-footer">
@@ -131,8 +131,9 @@
           </p>
           <p class="collection-note">
             Common · Uncommon · Rare · Epic · Legendary<br />Four lamps wait
-            on each slope and are saved the moment you pick them up. Reach the
-            goal score to earn the fifth and unlock the next level.
+            on each slope and are saved the moment you pick them up. Clear
+            every gate and reach the goal score to earn the fifth and unlock
+            the next level.
           </p>
         </div>
       </section>
@@ -183,19 +184,8 @@
         </div>
         <div id="steering" hidden><i></i><b></b></div>
         <div id="race-controls">
-          <button
-            id="boost"
-            class="boost-button"
-            aria-label="Hold to speed up"
-            aria-pressed="false"
-            aria-keyshortcuts="Space"
-          >
-            <svg viewBox="0 0 32 32" aria-hidden="true">
-              <path d="m18 3-11 15h8l-1 11 11-16h-8z" /></svg
-            ><strong id="boost-label">Speed up</strong><small>Hold</small>
-          </button>
           <div class="steer-hint" aria-hidden="true">
-            <span>↔</span>Right thumb<br />to steer
+            <span>↔</span>Drag<br />to steer
           </div>
         </div>
       </section>
@@ -214,9 +204,8 @@
           <span class="dialog-symbol">↔</span>
           <h2>Find your flow.</h2>
           <p>
-            Drag left or right with your right thumb to carve. Hold Speed up
-            with your left thumb for a 45% boost. Boosting widens your turns,
-            so ease off before tight gates.
+            Drag left or right with your thumb to carve. Sharper carving
+            costs speed, so keep your turns smooth.
           </p>
           <div class="how-gates">
             <i></i
@@ -229,17 +218,19 @@
           <p class="lamp-help">
             Every level holds five lamps. Four wait off the racing line, each
             with a rock on the line beside it: go wide for the lamp or cut
-            inside past the rock. Reach the goal score to earn the fifth and
-            unlock the next level.<br />Twenty levels, a hundred lamps.
+            inside past the rock. Clear every gate and reach the goal score to
+            earn the fifth and unlock the next level.<br />Twenty levels, a
+            hundred lamps.
           </p>
           <p class="lamp-help">
             Now and then a present falls from the sky!<br />Follow the gold
             ring and collect it after it lands for +200 points.
           </p>
           <p class="lamp-help">
-            Levels get faster and tighter, with more rocks and trees, and a
-            tumble costs speed and your combo. Lamps you pick up are saved at
-            once, even if you leave the run early.<br />Once you have a best run on
+            Levels get faster and tighter, with more rocks and trees. A tumble
+            costs 300 points, your speed and your combo, and a missed gate
+            means no finish lamp this run. Lamps you pick up are saved at once,
+            even if you leave the run early.<br />Once you have a best run on
             a level, a pale Vučko races it beside you and the timer shows how
             far ahead or behind you are.
           </p>
@@ -249,8 +240,7 @@
           </p>
           <p class="how-small">
             Miss a gate? Keep going. Take a tumble? Vučko gets right back up.<br /><br />On
-            a keyboard, use A / D or ← / →, and hold Space to boost.<br />Press
-            Esc or P to pause.
+            a keyboard, use A / D or ← / →.<br />Press Esc or P to pause.
           </p>
           <button id="how-close" class="primary">Got it <span>✓</span></button>
         </div>
@@ -273,6 +263,14 @@
           </div>
           <p id="result-goal" class="result-goal">Goal 1,800</p>
           <p id="result-found" class="result-discoveries"></p>
+          <div id="result-next" class="result-next" hidden>
+            <span id="result-next-art" class="result-next-art undiscovered"></span>
+            <span class="result-next-text"
+              ><strong id="result-next-title">Next: Level 2</strong
+              ><span id="result-next-hint"></span
+              ><small id="result-next-detail"></small></span
+            >
+          </div>
           <div class="results">
             <div><span>Time</span><strong id="result-time"></strong></div>
             <div><span>Score</span><strong id="result-score"></strong></div>

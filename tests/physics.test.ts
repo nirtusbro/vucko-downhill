@@ -107,6 +107,33 @@ describe("skiing", () => {
     stepRun(winner, 0, 1 / 60);
     expect(winner.passed).toBe(true);
   });
+  it("refuses a pass when any gate was missed, however high the score", () => {
+    const s = createRun(0);
+    const gate = s.course.gates[0];
+    s.x = gate.x + 8;
+    s.z = gate.z - 0.1;
+    s.speed = 18;
+    stepRun(s, 0, 1 / 60);
+    expect(s.misses).toBe(1);
+    s.nextGate = s.course.gates.length;
+    s.z = s.course.finishZ - 0.1;
+    s.score = s.course.goal * 3;
+    stepRun(s, 0, 1 / 60);
+    expect(s.finished).toBe(true);
+    expect(s.passed).toBe(false);
+  });
+  it("charges 300 points for a tumble, never below zero", () => {
+    const s = createRun(0);
+    s.score = 1000;
+    s.x = 22;
+    stepRun(s, 0, 1 / 60);
+    expect(s.crashes).toBe(1);
+    expect(s.score).toBe(700);
+    const broke = createRun(0);
+    broke.x = 22;
+    stepRun(broke, 0, 1 / 60);
+    expect(broke.score).toBe(0);
+  });
   it("colliding with an edge rock triggers a recoverable tumble", () => {
     const rock = OBSTACLES.find((o) => o.kind === "rock")!;
     const s = createRun(0);
