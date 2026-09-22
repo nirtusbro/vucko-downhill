@@ -4,6 +4,7 @@ import {
   createRun,
   stepRun,
   lampScore,
+  lampsKept,
   BULLSEYE_POINTS,
   COMBO_CAP,
   CRASH_PENALTY,
@@ -275,7 +276,10 @@ soundIcon();
 function event(name: string) {
   if (name === "finish") {
     audio.play(run.passed ? "finish" : "miss");
+    // Slope lamps only join the collection when the level is passed on this run.
+    for (const id of lampsKept(run)) if (progress.collect(id)) discoveries++;
     const result = progress.complete(level, run.score, run.passed);
+    levelMap.refreshHome();
     newBest = result.newBest;
     newlyEarned = result.newlyEarned;
     if (newBest) saveGhost(level, trace);
@@ -291,12 +295,9 @@ function event(name: string) {
   audio.play(name, run.combo);
   if (name === "lamp") {
     const id = run.course.pickupLampIds[run.lampEvent];
-    const isNew = progress.collect(id);
-    if (isNew) discoveries++;
-    levelMap.refreshHome();
     feedback.textContent = `${LAMP_CATALOG[id].name} +${lampPoints(id)}`;
     feedback.className = "show lamp";
-    combo.textContent = `${isNew ? "NEW LAMP · " : ""}${LAMP_CATALOG[id].rarity}`;
+    combo.textContent = `${progress.lamps[id] ? "" : "NEW LAMP · "}${LAMP_CATALOG[id].rarity} · pass to keep it`;
     feedbackUntil = elapsed + 1.1;
     return;
   }
@@ -361,8 +362,11 @@ function finish() {
   el("result-lamps").textContent = run.lampsAvailable
     ? `${run.lamps} / ${run.lampsAvailable} slope lamps · +${lampScore(run).toLocaleString()} points`
     : "Every slope lamp here is already yours";
-  el("result-found").textContent =
-    `${discoveries} new lamp${discoveries === 1 ? "" : "s"} found · ${progress.lampsFound(level)} / 5 for this level · ${progress.earnedCount} / 100 in all`;
+  el("result-found").textContent = run.passed
+    ? `${discoveries} new lamp${discoveries === 1 ? "" : "s"} kept · ${progress.lampsFound(level)} / 5 for this level · ${progress.earnedCount} / 100 in all`
+    : run.lamps
+      ? `${run.lamps} slope lamp${run.lamps === 1 ? "" : "s"} picked up but not kept: pass the level to keep them`
+      : `${progress.lampsFound(level)} / 5 for this level · ${progress.earnedCount} / 100 in all`;
   el("result-presents").textContent =
     `${run.presents.collected} birthday presents · +${run.presents.collected * PRESENT_POINTS} points`;
   el("result-bullseyes").textContent =

@@ -12,7 +12,7 @@ import {
   levelSettings,
 } from "../src/levels";
 import { LAMP_CATALOG, lampPoints } from "../src/lamp-catalog";
-import { createRun, lampScore, stepRun } from "../src/physics";
+import { createRun, lampScore, lampsKept, stepRun } from "../src/physics";
 import { drive } from "./helpers";
 
 describe("20 hand-placed levels", () => {
@@ -135,6 +135,29 @@ describe("20 hand-placed levels", () => {
       expect(a.presents.items).toEqual(b.presents.items);
     }
     expect(createRun(0).presents.seed).not.toBe(createRun(1).presents.seed);
+  });
+  it("keeps slope lamps only when the level is passed on that run", () => {
+    const passed = createRun(0);
+    drive(passed);
+    expect(passed.passed).toBe(true);
+    expect(lampsKept(passed)).toEqual(levelLamps(0).pickups);
+    const failed = createRun(0);
+    const gate = failed.course.gates[0];
+    failed.x = gate.x + 8;
+    failed.z = gate.z - 0.1;
+    stepRun(failed, 0, 1 / 60);
+    drive(failed);
+    expect(failed.finished).toBe(true);
+    expect(failed.passed).toBe(false);
+    expect(failed.lamps).toBeGreaterThan(0);
+    expect(lampsKept(failed)).toEqual([]);
+    const unfinished = createRun(0);
+    expect(lampsKept(unfinished)).toEqual([]);
+    const owned = Array(100).fill(false);
+    owned[levelLamps(0).pickups[0]] = true;
+    const replay = createRun(0, undefined, owned);
+    drive(replay);
+    expect(lampsKept(replay)).toEqual(levelLamps(0).pickups.slice(1));
   });
   it("leaves lamps already in the collection off the slope on a replay", () => {
     const owned = Array(100).fill(false);

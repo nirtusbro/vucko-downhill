@@ -57,6 +57,11 @@ export const clamp = (n: number, a: number, b: number) =>
   Math.max(a, Math.min(b, n));
 export const snowHeight = (z: number) =>
   -z * 0.1 + Math.sin(z * 0.022) * 0.45 + Math.sin(z * 0.064) * 0.15;
+/** Slope lamps a finished run keeps: those picked up this run, only if the level was passed. */
+export const lampsKept = (s: Run) =>
+  s.finished && s.passed
+    ? s.course.pickupLampIds.filter((_, i) => s.collectedLamps[i] && !s.preCollected[i])
+    : [];
 /** Points from the lamps a run has picked up so far. */
 export const lampScore = (s: Run) =>
   s.course.pickupLampIds.reduce(

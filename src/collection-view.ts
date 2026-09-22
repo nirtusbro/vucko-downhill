@@ -50,7 +50,7 @@ export class LevelMap {
     document.getElementById("collection-intro")!.textContent =
       found === LAMP_CATALOG.length
         ? "Every little light, found. The whole mountain is yours!"
-        : `Twenty levels, five lamps each. Pick up four on the slope and earn the fifth by reaching the goal, which opens the next level. Level ${this.progress.unlocked + 1} is waiting.`;
+        : `Twenty levels, five lamps each. Pick up four on the slope and earn the fifth by passing the level, which keeps the pickups and opens the next level. Level ${this.progress.unlocked + 1} is waiting.`;
     const wanted = (id: number) => {
       const owned = this.progress.lamps[id];
       return (
