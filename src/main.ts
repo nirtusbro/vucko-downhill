@@ -235,6 +235,7 @@ function start(endless = false) {
 el("play").onclick = () => start();
 el("endless").onclick = () => start(true);
 el("again").onclick = () => start(run.course.endless === true);
+el("retry").onclick = () => start(run.course.endless === true);
 el("restart").onclick = () => start(run.course.endless === true);
 el("next-level").onclick = () => {
   selectLevel(level + 1);
@@ -467,6 +468,10 @@ function finish() {
   el("new-best").hidden = !newBest;
   const hasNext = run.passed && level + 1 < LEVEL_COUNT;
   el("next-level").hidden = !hasNext;
+  // A failed level offers Try again in the same place and style as Next level.
+  el("retry").hidden = run.passed;
+  el("retry").firstChild!.textContent = "Try again ";
+  el("again").hidden = !run.passed;
   const nextCard = el("result-next");
   nextCard.hidden = !hasNext;
   if (hasNext) {
@@ -509,7 +514,9 @@ function finishEndless() {
   el("new-best").hidden = !newBest;
   el("next-level").hidden = true;
   el("result-next").hidden = true;
-  el("again").textContent = "Ski again";
+  el("retry").hidden = false;
+  el("retry").firstChild!.textContent = "Ski again ";
+  el("again").hidden = true;
   changeMode("finished");
 }
 try {

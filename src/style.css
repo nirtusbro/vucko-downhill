@@ -598,7 +598,8 @@ h1 span {
 .result-goal.passed {
   color: #3f8a5a;
 }
-#next-level[hidden] {
+#next-level[hidden],
+#retry[hidden] {
   display: none;
 }
 .dialog .next-level {
