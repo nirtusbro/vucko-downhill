@@ -79,23 +79,4 @@ export const LAMP_CATALOG: LampDesign[] = Array.from(
     };
   },
 );
-/** Pickup points by rarity: rarer lamps sit farther off the line and pay more. */
-export const LAMP_POINTS: Record<Rarity, number> = {
-  Common: 50,
-  Uncommon: 75,
-  Rare: 100,
-  Epic: 150,
-  Legendary: 250,
-};
-/** Extra metres off the racing line, on top of the base detour. */
-export const LAMP_DETOUR_EXTRA: Record<Rarity, number> = {
-  Common: 0,
-  Uncommon: 0,
-  Rare: 1.5,
-  Epic: 2.5,
-  Legendary: 3,
-};
-export const lampPoints = (id: number) => LAMP_POINTS[LAMP_CATALOG[id].rarity];
-export const lampDetourExtra = (id: number) =>
-  LAMP_DETOUR_EXTRA[LAMP_CATALOG[id].rarity];
 

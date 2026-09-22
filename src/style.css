@@ -432,6 +432,9 @@ h1 span {
 .home-lamp.owned .lamp-art {
   filter: drop-shadow(0 6px 7px #d2b46940);
 }
+.home-lamp.bonus .lamp-art {
+  filter: none;
+}
 .home-lamp-name {
   font-size: 12px;
   font-weight: 900;

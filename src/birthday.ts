@@ -223,7 +223,8 @@ export class Birthday {
         lamp.name = "lamp";
         group.add(lamp);
       });
-      const display = lampModel(s.course.lampId);
+      // Bonus levels earn no lamp; the summit lamp stands on the table instead.
+      const display = lampModel(s.course.lampId >= 0 ? s.course.lampId : 99);
       display.position.copy(this.displayLamp.position);
       this.menuDisplay.remove(this.displayLamp);
       this.menuDisplay.add(display);

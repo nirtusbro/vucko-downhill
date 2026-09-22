@@ -1,5 +1,4 @@
 import { createPresents, stepPresents } from "./presents";
-import { lampPoints } from "./lamp-catalog";
 import {
   BULLSEYE_POINTS,
   CRASH_PENALTY,
@@ -62,13 +61,6 @@ export const lampsKept = (s: Run) =>
   s.finished && s.passed
     ? s.course.pickupLampIds.filter((_, i) => s.collectedLamps[i] && !s.preCollected[i])
     : [];
-/** Points from the lamps a run has picked up so far. */
-export const lampScore = (s: Run) =>
-  s.course.pickupLampIds.reduce(
-    (sum, id, i) =>
-      sum + (s.collectedLamps[i] && !s.preCollected[i] ? lampPoints(id) : 0),
-    0,
-  );
 /** Everything about a level is fixed, presents included, so a run seeds from the level. */
 export const levelSeed = (level: number) => (level * 7919 + 101) >>> 0;
 export function createRun(
@@ -78,6 +70,9 @@ export function createRun(
 ): Run {
   const course = getCourse(level);
   const preCollected = course.pickupLampIds.map((id) => owned[id] === true);
+  const presents = createPresents(seed);
+  // Bonus levels have no presents: the first drop never comes.
+  if (!course.presents) presents.nextDrop = Infinity;
   return {
     level: course.level,
     course,
@@ -101,7 +96,7 @@ export function createRun(
     preCollected,
     lampEvent: -1,
     goal: course.goal,
-    presents: createPresents(seed),
+    presents,
     crashTime: 0,
     invincible: 0,
     finished: false,
@@ -187,9 +182,9 @@ export function stepRun(s: Run, input: number, dt: number) {
         Math.hypot(lamp.x - (oldX + t * dx), lamp.z - (oldZ + t * dz)) <
         c.pickupRadius
       ) {
+        // Lamps are worth nothing in points; they are kept by passing the level.
         s.collectedLamps[i] = true;
         s.lamps++;
-        s.score += lampPoints(c.pickupLampIds[i]);
         s.lampEvent = i;
       }
     }

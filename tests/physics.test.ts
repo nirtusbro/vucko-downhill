@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   createRun,
   stepRun,
-  lampScore,
   OBSTACLES,
   type Run,
 } from "../src/physics";
@@ -156,7 +155,7 @@ describe("skiing", () => {
       expect(s.hits).toBe(s.course.gates.length);
       expect(s.lamps).toBe(s.course.lampSpots.length);
       expect(
-        s.score - s.timeBonus - s.presents.collected * 200 - s.bullseyes * 50 - lampScore(s),
+        s.score - s.timeBonus - s.presents.collected * 200 - s.bullseyes * 50,
       ).toBe(s.course.maxGateScore);
       expect(s.time).toBeGreaterThan(15);
       expect(s.time).toBeLessThan(45);

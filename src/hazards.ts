@@ -1,13 +1,14 @@
 import * as THREE from "three";
 import { cone, cylinder, material, pebble, shape } from "./geometry";
 import { snowHeight, type Hazard, type Run } from "./physics";
+import { hazardPoolSizes } from "./levels";
 
 const pine = material("#326c64"),
   snow = material("#eaf4fc"),
   wood = material("#a77f61"),
   stone = material("#8396a6");
-const ROCK_POOL = 28,
-  TREE_POOL = 10;
+// Pools sized for the rockiest level, so every hazard that can tumble the skier is drawn.
+const { rocks: ROCK_POOL, trees: TREE_POOL } = hazardPoolSizes();
 
 function rock() {
   const g = new THREE.Group();

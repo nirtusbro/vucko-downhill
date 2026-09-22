@@ -3,7 +3,6 @@ import "./collection.css";
 import {
   createRun,
   stepRun,
-  lampScore,
   lampsKept,
   BULLSEYE_POINTS,
   COMBO_CAP,
@@ -17,7 +16,7 @@ import { readValue, writeValue } from "./storage";
 import { PRESENT_POINTS } from "./presents";
 import { LevelProgress } from "./progress";
 import { LevelMap } from "./collection-view";
-import { LAMP_CATALOG, lampPoints } from "./lamp-catalog";
+import { LAMP_CATALOG } from "./lamp-catalog";
 import { lampArt } from "./lamp-art";
 import {
   loadGhost,
@@ -29,6 +28,9 @@ import {
 
 const el = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
+/** Stands in for a lamp on the bonus levels beyond the summit. */
+const PEAK_ART =
+  '<svg xmlns="http://www.w3.org/2000/svg" class="lamp-art" viewBox="0 0 80 88" aria-hidden="true"><path d="M4 78 30 22l13 24 9-12 24 44z" fill="#8cb3ce"/><path d="M30 22l9 17-9-4-8 6z" fill="#f0f6fd"/><path d="M52 34l7 13-7-3-5 5z" fill="#f0f6fd"/><path d="M4 78h72" stroke="#c9d8e6" stroke-width="3"/></svg>';
 const canvas = el<HTMLCanvasElement>("game");
 const input = new SkiInput(canvas);
 const progress = new LevelProgress();
@@ -68,31 +70,38 @@ const formatTime = (time: number) => {
 };
 function refreshHome() {
   const course = getCourse(level),
-    lamp = LAMP_CATALOG[course.lampId],
-    earned = progress.lamps[course.lampId];
+    bonus = course.lampId < 0,
+    lamp = bonus ? null : LAMP_CATALOG[course.lampId],
+    earned = bonus ? progress.passed(level) : progress.lamps[course.lampId];
   el("home-level").textContent = `Level ${level + 1}`;
   el("home-level-of").textContent = `· ${course.name}`;
   el("home-hint").textContent = course.hint;
   const art = el("home-lamp-art");
-  art.innerHTML = lampArt(lamp);
-  art.className = earned ? "home-lamp owned" : "home-lamp undiscovered";
-  el("home-lamp-name").textContent = earned
-    ? lamp.name
-    : "Clear every gate and reach the goal to earn this lamp";
+  art.innerHTML = lamp ? lampArt(lamp) : PEAK_ART;
+  art.className = bonus ? "home-lamp bonus" : earned ? "home-lamp owned" : "home-lamp undiscovered";
+  el("home-lamp-name").textContent = bonus
+    ? earned
+      ? "Cleared. No lamps, no presents, just rock."
+      : "Bonus level: no lamps, no presents, just rock."
+    : earned
+      ? lamp!.name
+      : "Clear every gate and reach the goal to earn this lamp";
   el("home-pickups").innerHTML = course.pickupLampIds
     .map(
       (id) =>
         `<span class="shelf-lamp ${progress.lamps[id] ? "owned" : "undiscovered"}" title="${progress.lamps[id] ? LAMP_CATALOG[id].name : "Still on the slope"}">${lampArt(LAMP_CATALOG[id])}</span>`,
     )
     .join("");
-  el("home-lamp-rarity").textContent = lamp.rarity;
-  el("home-lamp-rarity").parentElement!.dataset.rarity = lamp.rarity;
+  el("home-lamp-rarity").textContent = lamp ? lamp.rarity : "Beyond the summit";
+  el("home-lamp-rarity").parentElement!.dataset.rarity = lamp ? lamp.rarity : "Legendary";
   el("home-gates").textContent = String(course.gates.length);
   el("home-goal").textContent = course.goal.toLocaleString();
   el("home-high-score").textContent = progress.best[level].toLocaleString();
   el("play-label").textContent = earned
     ? `Level ${level + 1} again`
-    : `Ski level ${level + 1}`;
+    : bonus
+      ? `Bonus level ${level + 1}`
+      : `Ski level ${level + 1}`;
   el<HTMLButtonElement>("level-prev").disabled = level === 0;
   el<HTMLButtonElement>("level-next").disabled = level >= progress.unlocked;
   levelMap.refreshHome();
@@ -295,7 +304,7 @@ function event(name: string) {
   audio.play(name, run.combo);
   if (name === "lamp") {
     const id = run.course.pickupLampIds[run.lampEvent];
-    feedback.textContent = `${LAMP_CATALOG[id].name} +${lampPoints(id)}`;
+    feedback.textContent = LAMP_CATALOG[id].name;
     feedback.className = "show lamp";
     combo.textContent = `${progress.lamps[id] ? "" : "NEW LAMP · "}${LAMP_CATALOG[id].rarity} · pass to keep it`;
     feedbackUntil = elapsed + 1.1;
@@ -323,14 +332,17 @@ function event(name: string) {
 }
 function finish() {
   const course = run.course,
-    lamp = LAMP_CATALOG[course.lampId];
+    bonus = course.lampId < 0,
+    lamp = bonus ? null : LAMP_CATALOG[course.lampId];
   el("finish-kicker").textContent = run.passed
-    ? `Level ${level + 1} complete!`
+    ? `Level ${level + 1} ${bonus ? "cleared!" : "complete!"}`
     : `Level ${level + 1} · not quite`;
   el("result-title").textContent = run.passed
-    ? newlyEarned
-      ? "A new lamp for Ljubica."
-      : "Beautiful run."
+    ? bonus
+      ? "Beyond the summit."
+      : newlyEarned
+        ? "A new lamp for Ljubica."
+        : "Beautiful run."
     : "The mountain will wait.";
   el("result-level").textContent = `Level ${level + 1} of ${LEVEL_COUNT} · ${course.name}`;
   el("result-time").textContent = formatTime(run.time);
@@ -350,19 +362,28 @@ function finish() {
   el("result-gates").textContent = `${run.hits} / ${course.gates.length}`;
   el("result-best").textContent = progress.best[level].toLocaleString();
   const reveal = el("result-lamp");
-  reveal.className = `result-lamp ${run.passed ? "owned" : "undiscovered"}`;
-  reveal.dataset.rarity = lamp.rarity;
-  el("result-lamp-art").innerHTML = lampArt(lamp);
-  el("result-lamp-name").textContent = run.passed
-    ? lamp.name
-    : "Pass the level to earn this lamp";
-  el("result-lamp-rarity").textContent = run.passed
-    ? `${lamp.rarity}${newlyEarned ? " · New!" : " · Earned before"}`
-    : lamp.rarity;
+  reveal.hidden = bonus;
+  if (lamp) {
+    reveal.className = `result-lamp ${run.passed ? "owned" : "undiscovered"}`;
+    reveal.dataset.rarity = lamp.rarity;
+    el("result-lamp-art").innerHTML = lampArt(lamp);
+    el("result-lamp-name").textContent = run.passed
+      ? lamp.name
+      : "Pass the level to earn this lamp";
+    el("result-lamp-rarity").textContent = run.passed
+      ? `${lamp.rarity}${newlyEarned ? " · New!" : " · Earned before"}`
+      : lamp.rarity;
+  }
   el("result-lamps").textContent = run.lampsAvailable
-    ? `${run.lamps} / ${run.lampsAvailable} slope lamps · +${lampScore(run).toLocaleString()} points`
-    : "Every slope lamp here is already yours";
-  el("result-found").textContent = run.passed
+    ? `${run.lamps} / ${run.lampsAvailable} slope lamps`
+    : bonus
+      ? "No lamps on this slope"
+      : "Every slope lamp here is already yours";
+  el("result-found").textContent = bonus
+    ? run.passed
+      ? `Bonus level cleared · ${progress.clearedCount - 20 > 0 ? progress.clearedCount - 20 : 1} / 10 beyond the summit`
+      : "Bonus level · no lamps, no presents, just rock"
+    : run.passed
     ? `${discoveries} new lamp${discoveries === 1 ? "" : "s"} kept · ${progress.lampsFound(level)} / 5 for this level · ${progress.earnedCount} / 100 in all`
     : run.lamps
       ? `${run.lamps} slope lamp${run.lamps === 1 ? "" : "s"} picked up but not kept: pass the level to keep them`
@@ -378,13 +399,13 @@ function finish() {
   nextCard.hidden = !hasNext;
   if (hasNext) {
     const next = getCourse(level + 1),
-      nextLamp = LAMP_CATALOG[next.lampId];
+      nextLamp = next.lampId >= 0 ? LAMP_CATALOG[next.lampId] : null;
     el("result-next-title").textContent = `Next: Level ${level + 2} · ${next.name}`;
     el("result-next-hint").textContent = next.hint;
-    el("result-next-art").innerHTML = lampArt(nextLamp);
-    el("result-next-art").className = `result-next-art ${progress.lamps[next.lampId] ? "owned" : "undiscovered"}`;
+    el("result-next-art").innerHTML = nextLamp ? lampArt(nextLamp) : PEAK_ART;
+    el("result-next-art").className = `result-next-art ${nextLamp && progress.lamps[next.lampId] ? "owned" : "undiscovered"}`;
     el("result-next-detail").textContent =
-      `${next.gates.length} gates · goal ${next.goal.toLocaleString()} · ${nextLamp.rarity} lamp`;
+      `${next.gates.length} gates · goal ${next.goal.toLocaleString()} · ${nextLamp ? `${nextLamp.rarity} lamp` : "bonus level, no lamps"}`;
   }
   el("again").textContent = run.passed ? "Ski it again" : "Try again";
   changeMode("finished");

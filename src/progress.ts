@@ -8,12 +8,13 @@ const validLevel = (n: unknown): n is number =>
 const validLamp = (n: unknown): n is number =>
   Number.isInteger(n) && (n as number) >= 0 && (n as number) < LAMP_CATALOG.length;
 /**
- * Which levels are unlocked, which of the hundred lamps are in the collection
- * (finish lamps by passing a level, the others by picking them up) and the
- * best score per level.
+ * Which levels are unlocked and cleared, which of the hundred lamps are in
+ * the collection (finish lamps by passing a level, the others by picking them
+ * up on a passed run) and the best score per level.
  */
 export class LevelProgress {
   unlocked = 0;
+  cleared: boolean[] = Array(LEVEL_COUNT).fill(false);
   lamps: boolean[] = Array(LAMP_CATALOG.length).fill(false);
   best: number[] = Array(LEVEL_COUNT).fill(0);
   constructor() {
@@ -23,6 +24,18 @@ export class LevelProgress {
       if (validLevel(saved.unlocked)) this.unlocked = saved.unlocked;
       if (Array.isArray(saved.lamps))
         for (const id of saved.lamps) if (validLamp(id)) this.lamps[id] = true;
+      if (Array.isArray(saved.cleared))
+        for (const level of saved.cleared) if (validLevel(level)) this.cleared[level] = true;
+      // Saves from before bonus levels only know finish lamps; a finish lamp means a clear.
+      for (let level = 0; level < LEVEL_COUNT; level++) {
+        const finish = levelLamps(level).finish;
+        if (finish >= 0 && this.lamps[finish]) this.cleared[level] = true;
+      }
+      // Every cleared level opens the one after it, even when the save was
+      // written before that level existed.
+      this.cleared.forEach((done, level) => {
+        if (done) this.unlocked = Math.max(this.unlocked, Math.min(LEVEL_COUNT - 1, level + 1));
+      });
       if (Array.isArray(saved.best))
         saved.best.forEach((score: unknown, level: number) => {
           if (validLevel(level) && Number.isSafeInteger(score) && (score as number) > 0)
@@ -35,20 +48,23 @@ export class LevelProgress {
   get earnedCount() {
     return this.lamps.filter(Boolean).length;
   }
+  get clearedCount() {
+    return this.cleared.filter(Boolean).length;
+  }
   isUnlocked(level: number) {
     return validLevel(level) && level <= this.unlocked;
   }
-  /** Whether the level's finish lamp has been earned. */
+  /** Whether the level has been passed. */
   passed(level: number) {
-    return validLevel(level) && this.lamps[levelLamps(level).finish];
+    return validLevel(level) && this.cleared[level];
   }
-  /** How many of the level's five lamps are in the collection. */
+  /** How many of the level's lamps are in the collection. */
   lampsFound(level: number) {
     if (!validLevel(level)) return 0;
     const { pickups, finish } = levelLamps(level);
-    return [...pickups, finish].filter((id) => this.lamps[id]).length;
+    return [...pickups, finish].filter((id) => validLamp(id) && this.lamps[id]).length;
   }
-  /** Saves a slope pickup at once; returns whether it is a new lamp. */
+  /** Saves a lamp; returns whether it is new to the collection. */
   collect(lampId: number) {
     if (!validLamp(lampId)) return false;
     const isNew = !this.lamps[lampId];
@@ -62,9 +78,10 @@ export class LevelProgress {
     const newBest = passed && score > this.best[level];
     if (newBest) this.best[level] = score;
     const finish = levelLamps(level).finish;
-    const newlyEarned = passed && !this.lamps[finish];
+    const newlyEarned = passed && !this.cleared[level];
     if (passed) {
-      this.lamps[finish] = true;
+      this.cleared[level] = true;
+      if (finish >= 0) this.lamps[finish] = true;
       this.unlocked = Math.max(this.unlocked, Math.min(LEVEL_COUNT - 1, level + 1));
     }
     this.save();
@@ -76,6 +93,7 @@ export class LevelProgress {
       JSON.stringify({
         version: 2,
         unlocked: this.unlocked,
+        cleared: this.cleared.flatMap((done, level) => (done ? [level] : [])),
         lamps: this.lamps.flatMap((owned, id) => (owned ? [id] : [])),
         best: this.best,
       }),

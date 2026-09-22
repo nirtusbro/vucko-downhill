@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createRun, stepRun } from "../src/physics";
 import { getCourse, LEVEL_COUNT } from "../src/levels";
-import { lampPoints } from "../src/lamp-catalog";
 
 describe("little-light pickups", () => {
   it("leaves clear skiing space between each gate and its optional bonus", () => {
@@ -25,7 +24,7 @@ describe("little-light pickups", () => {
     stepRun(s, 0, 1 / 60);
     expect(s.lamps).toBe(0);
   });
-  it("collects a pickup on its line and awards that lamp's points only once", () => {
+  it("collects a pickup on its line once, for no points", () => {
     for (const level of [0, 9, 19]) {
       const s = createRun(level);
       const lamp = s.course.lampSpots[0];
@@ -36,15 +35,13 @@ describe("little-light pickups", () => {
       stepRun(s, 0, 1 / 60);
       expect(s.lamps).toBe(1);
       expect(s.collectedLamps[0]).toBe(true);
-      const points = lampPoints(s.course.pickupLampIds[0]);
-      expect(s.score).toBe(points);
+      expect(s.score).toBe(0);
       expect(s.lampEvent).toBe(0);
       stepRun(s, 0, 1 / 60);
       expect(s.lamps).toBe(1);
-      expect(s.score).toBe(points);
+      expect(s.score).toBe(0);
       expect(s.lampEvent).toBe(-1);
     }
-    expect(lampPoints(99)).toBeGreaterThan(lampPoints(0));
   });
   it("does not collect a pickup when passing wide of it", () => {
     const s = createRun(0);

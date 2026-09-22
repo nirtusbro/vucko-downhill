@@ -198,6 +198,58 @@
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
+.bonus-group {
+  background: #1d3a4f;
+  border-color: #1d3a4f;
+  color: #f2f8ff;
+}
+.bonus-group .level-head-detail {
+  color: #c4d6e2;
+}
+.bonus-levels {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+}
+.bonus-play {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  font: inherit;
+  text-align: left;
+  min-height: 48px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid #ffffff33;
+  background: #ffffff14;
+  color: inherit;
+  cursor: pointer;
+}
+.bonus-play strong {
+  font-size: 13px;
+  font-weight: 900;
+}
+.bonus-play small {
+  font-size: 10px;
+  opacity: 0.8;
+}
+.bonus-play.current {
+  border-color: #e3c47a;
+  background: #ffffff22;
+}
+.bonus-play.cleared {
+  background: #3f8a5a;
+  border-color: #3f8a5a;
+}
+.bonus-play:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.bonus-play:focus-visible {
+  outline: 3px solid #e3c47a;
+  outline-offset: 2px;
+}
 .catalog-lamp {
   border: 1px solid #d8e2e1;
   border-radius: 16px;

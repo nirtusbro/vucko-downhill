@@ -1,11 +1,13 @@
-export const LEVEL_COUNT = 20;
-export const MAX_GATES = 26;
+export const LEVEL_COUNT = 30;
+/** The first twenty levels carry the hundred lamps; the rest are bonus runs with none. */
+export const LAMP_LEVELS = 20;
+export const MAX_GATES = 30;
 /** Lamps tied to each level: four collectible on the slope, one earned at the finish. */
 export const PICKUPS_PER_LEVEL = 4;
 export const LAMPS_PER_LEVEL = PICKUPS_PER_LEVEL + 1;
 export const MAX_PICKUPS = PICKUPS_PER_LEVEL;
 /** Longest course any level can produce; scenery is laid out to cover it. */
-export const MAX_COURSE_LENGTH = 1150;
+export const MAX_COURSE_LENGTH = 1300;
 export const STEER_RESPONSE = 4.4;
 /** The slope steepens toward the finish: cruising speed rises by this fraction. */
 export const SLOPE_RAMP = 0.08;
@@ -13,6 +15,7 @@ export const SLOPE_RAMP = 0.08;
 export const SPEED_SCALE = 1.15;
 /** Catalogue lamps owned by a level, rarest last: the finish lamp. */
 export function levelLamps(level: number) {
+  if (level >= LAMP_LEVELS) return { pickups: [] as number[], finish: -1 };
   const first = level * LAMPS_PER_LEVEL;
   return {
     pickups: Array.from({ length: PICKUPS_PER_LEVEL }, (_, i) => first + i),
@@ -70,6 +73,10 @@ export interface LevelDesign {
   wideRocks: number[];
   /** Stretches with a rock on the direct line halfway along, for gates that would otherwise line up. */
   lineRocks: number[];
+  /** Put a stray rock on every stretch that has nothing else in it. */
+  fillRocks: boolean;
+  /** Whether birthday presents fall on this level. */
+  presents: boolean;
   /** Stretches that end in a rock gate: two rocks to thread on the way to the next flags. */
   rockGates: number[];
   /** Stretches that end in a weave: three rocks alternating sides on the way in. */
@@ -85,6 +92,7 @@ export interface Course {
   level: number;
   name: string;
   hint: string;
+  presents: boolean;
   /** The lamp earned by passing the level. */
   lampId: number;
   /** The lamp each pickup spot holds, in slope order. */
@@ -125,6 +133,8 @@ const base: Omit<LevelDesign, "name" | "hint" | "gates" | "lamps"> = {
   guards: [],
   wideRocks: [],
   lineRocks: [],
+  fillRocks: false,
+  presents: true,
   rockGates: [],
   weaves: [],
   goalFraction: 0.6,
@@ -305,6 +315,93 @@ export const LEVEL_DESIGNS: LevelDesign[] = [
     rockGates: [1, 9, 17],
     wideRocks: [4, 7, 18, 23],
   }),
+  // Beyond the summit: ten bonus levels for those who really want to. No lamps,
+  // no presents, just gates and rock, and a rock in every stretch that has
+  // nothing else in it.
+  design("Black run", "Beyond the summit. No lamps, no presents, just rock. Every gate, no excuses.", {
+    baseWidth: 5.4, speed: 38, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.9, parFactor: 1.2,
+    gates: [[-4, 60], [5, 42], [-6, 40], [7, 40], [-8, 40], [9, 45], [-5, 38], [4, 38], [-7, 40], [8, 40], [-9.5, 42], [9.5, 42], [-4, 38], [5, 38], [-6, 38], [7, 40], [-8, 40], [9, 45], [-5, 38], [6, 38], [-7, 40], [8, 40], [-9.5, 42], [9.5, 42]],
+    lamps: [],
+    weaves: [4, 16],
+    rockGates: [1, 7, 13, 19],
+  }),
+  design("Rock garden", "Weave after weave. Read three rocks ahead or eat snow.", {
+    baseWidth: 5.3, speed: 38.5, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.9, parFactor: 1.2,
+    gates: [[3, 60], [-6, 42], [6, 44], [-7, 44], [6, 44], [-5, 44], [7, 44], [-8, 40], [8, 40], [-6, 44], [5, 44], [-7, 44], [8, 44], [-9, 40], [9, 40], [-6, 44], [6, 44], [-7, 44], [7, 44], [-5, 40], [9.5, 42], [-9.5, 42], [6, 40], [-7, 40]],
+    lamps: [],
+    weaves: [1, 3, 5, 9, 11, 15, 17],
+    rockGates: [7, 13, 19],
+  }),
+  design("The chute", "Funnels that close to nothing, with flicks between. Precision at speed.", {
+    baseWidth: 5.2, speed: 39, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.92, parFactor: 1.2,
+    gates: [[-4, 60], [5, 42], [-5, 40, 0.95], [4.5, 38, 0.9], [-4, 36, 0.88], [6, 42], [-6, 40, 0.95], [5.5, 38, 0.9], [-5, 36, 0.88], [7, 44], [-3, 30], [3.5, 30], [-3, 30], [6, 42], [-6, 40, 0.95], [5.5, 38, 0.9], [-5, 36, 0.88], [7, 44], [-9.5, 42], [9.5, 42], [-3, 30], [3.5, 30], [-3, 30], [6, 42], [-7, 42], [7, 42]],
+    lamps: [],
+    weaves: [8, 16],
+    rockGates: [4, 12, 24],
+  }),
+  design("Knife edge", "Hairpin after hairpin at full tilt, rocks on every way in.", {
+    baseWidth: 5.1, speed: 39.5, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.92, parFactor: 1.2,
+    gates: [[-9, 60], [9.5, 42], [-9.5, 42], [5, 40], [-9.5, 42], [9.5, 42], [-4, 40], [9, 45], [-9.5, 42], [4.5, 40], [-9, 42], [9.5, 42], [-5, 40], [9.5, 42], [-9.5, 42], [4, 40], [-9.5, 42], [9.5, 42], [-5, 40], [9, 45], [-9.5, 42], [5, 40], [-9.5, 42], [9.5, 42], [-4, 40], [8, 42]],
+    lamps: [],
+    weaves: [6, 18],
+    rockGates: [3, 9, 15, 21],
+  }),
+  design("Couloir", "Twenty-eight gates of flicks, each pair ending in rock.", {
+    baseWidth: 5, speed: 40, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.94, parFactor: 1.2,
+    gates: [[-3, 60], [3.5, 40], [-3.5, 40], [3, 30], [-3, 30], [3, 30], [-3, 30], [7, 44], [-7, 44], [3, 30], [-3, 30], [3, 30], [-3, 30], [8, 44], [-8, 44], [3.5, 30], [-3, 30], [3.5, 30], [-3, 30], [7, 44], [-7, 44], [3, 30], [-3, 30], [3, 30], [-3, 30], [9, 44], [-9, 44], [6, 40]],
+    lamps: [],
+    weaves: [6, 12, 18, 24],
+    rockGates: [7, 13, 19, 25],
+  }),
+  design("Icefall", "Staircases with a rock on every step, then the drop.", {
+    baseWidth: 5, speed: 40.5, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.94, parFactor: 1.2,
+    gates: [[-9, 60], [-5, 40], [-1, 40], [3, 40], [7, 40], [-6, 44], [6, 44], [2, 40], [-2, 40], [-6, 40], [-9, 40], [9, 44], [-9, 44], [-5, 40], [-1, 40], [3, 40], [7, 40], [-7, 44], [7, 44], [3, 40], [-1, 40], [-5, 40], [-9, 40], [9.5, 44], [-9.5, 44], [5, 40], [-6, 40], [7, 40]],
+    lamps: [],
+    lineRocks: [0, 1, 2, 3, 6, 7, 8, 9, 12, 13, 14, 15, 18, 19, 20, 21],
+    weaves: [5, 11, 17, 23],
+    rockGates: [4, 10, 16, 22],
+  }),
+  design("Vertigo", "Hairpins into chicanes into hairpins. Never a straight metre.", {
+    baseWidth: 4.9, speed: 41, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.95, parFactor: 1.2,
+    gates: [[-9, 60], [9.5, 42], [-9.5, 42], [3, 30], [-3, 30], [3, 30], [-9, 42], [9.5, 42], [-9.5, 42], [3, 30], [-3, 30], [3, 30], [-9, 42], [9.5, 44], [-9.5, 44], [3, 30], [-3, 30], [3, 30], [-9, 42], [9.5, 44], [-9.5, 44], [3, 30], [-3, 30], [3, 30], [-9, 42], [9.5, 44], [-9.5, 44], [5, 40]],
+    lamps: [],
+    weaves: [12, 18, 24],
+    rockGates: [0, 6, 13, 19],
+  }),
+  design("Whiteout", "Everything the mountain has, thirty gates of it.", {
+    baseWidth: 4.9, speed: 41.5, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.95, parFactor: 1.2,
+    gates: [[-4, 60], [6, 40], [-7, 40], [8, 40], [-9, 42], [9.5, 42], [-5, 38], [4, 38], [-3, 30], [3, 30], [-3, 30], [7, 44], [-8, 44], [3, 40], [-1, 40], [-5, 40], [-9, 40], [9.5, 44], [-9.5, 44], [5, 40], [-6, 40, 0.95], [5, 38, 0.9], [-4.5, 36, 0.88], [7, 44], [-7, 44], [3, 30], [-3, 30], [3, 30], [-8, 42], [8, 42]],
+    lamps: [],
+    lineRocks: [13, 14, 15],
+    weaves: [10, 16, 22],
+    rockGates: [3, 11, 17, 23, 28],
+  }),
+  design("Last light", "Tighter, faster, rockier. One tumble is one too many.", {
+    baseWidth: 4.8, speed: 42, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.96, parFactor: 1.2,
+    gates: [[3, 60], [-6, 40], [7, 40], [-8, 40], [9, 40], [-9.5, 42], [9.5, 42], [-4, 38], [4.5, 38], [-5, 38], [5.5, 38], [-3, 30], [3, 30], [-3, 30], [8, 44], [-8, 44], [4, 40], [-4, 40], [-8, 40], [9, 44], [-9, 44], [5, 40], [-5.5, 40, 0.95], [5, 38, 0.92], [-4.5, 36, 0.9], [8, 44], [-8, 44], [3, 30], [-3, 30], [7, 42]],
+    lamps: [],
+    lineRocks: [17],
+    weaves: [13, 18, 24, 25],
+    rockGates: [1, 3, 6, 8, 15, 20, 28],
+  }),
+  design("Beyond the summit", "The last word. Thirty gates, every trick, nothing to spare.", {
+    baseWidth: 4.7, speed: 42.5, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.97, parFactor: 1.2,
+    gates: [[-4, 60], [6, 40], [-8, 40], [9.5, 42], [-9.5, 42], [4, 38], [-5, 38], [3, 30], [-3, 30], [3, 30], [-8, 44], [8, 44], [-4, 40], [0, 40], [4, 40], [8, 40], [-9, 44], [9.5, 44], [-9.5, 44], [5, 40], [-6, 40, 0.95], [5, 38, 0.92], [-4.5, 36, 0.9], [8, 44], [-8, 44], [3, 30], [-3, 30], [3, 30], [-9, 42], [9, 42]],
+    lamps: [],
+    lineRocks: [12, 13, 14],
+    weaves: [9, 15, 22],
+    rockGates: [2, 10, 16, 23, 28],
+  }),
 ];
 export const levelSettings = (level: number) =>
   LEVEL_DESIGNS[Math.max(0, Math.min(LEVEL_COUNT - 1, level))];
@@ -405,6 +502,12 @@ export function buildCourse(level: number): Course {
       next = gates[index + 1] ?? { x: 0, z: finishZ };
     rock((gate.x + next.x) / 2, (gate.z + next.z) / 2, FORK_ROCK_RADIUS);
   }
+  if (S.fillRocks) {
+    const used = new Set([...S.lamps, ...S.weaves, ...S.rockGates, ...S.wideRocks, ...S.lineRocks]);
+    for (const s of stretches)
+      if (!used.has(s.index) && s.index < stretches.length - 1 && s.length >= 30)
+        rock(s.lineX + s.side * S.detour, s.lampZ, WIDE_ROCK_RADIUS);
+  }
   hazards.sort((a, b) => a.z - b.z);
   const maxGateScore = gates.reduce((sum, _, i) => sum + 100 * Math.min(8, i + 1), 0);
   const lamps = levelLamps(level);
@@ -416,6 +519,7 @@ export function buildCourse(level: number): Course {
     level,
     name: S.name,
     hint: S.hint,
+    presents: S.presents,
     lampId: lamps.finish,
     pickupLampIds: lamps.pickups.slice(0, lampSpots.length),
     gates,
@@ -435,6 +539,17 @@ export function buildCourse(level: number): Course {
 /** A short signature of a level's layout; a ghost recorded on a different layout is discarded. */
 export const courseFingerprint = (course: Course) =>
   `${course.gates.map((g) => `${g.x}:${g.z}:${Math.round(g.width * 10)}`).join(",")}|${course.finishZ}|${course.hazards.length}`;
+/** The most rocks and trees any level places, so renderers can pool enough models. */
+export function hazardPoolSizes() {
+  let rocks = 0,
+    trees = 0;
+  for (let level = 0; level < LEVEL_COUNT; level++) {
+    const hazards = getCourse(level).hazards;
+    rocks = Math.max(rocks, hazards.filter((h) => h.kind === "rock").length);
+    trees = Math.max(trees, hazards.filter((h) => h.kind === "tree").length);
+  }
+  return { rocks, trees };
+}
 const cache = new Map<number, Course>();
 export function getCourse(level: number) {
   const key = Math.max(0, Math.min(LEVEL_COUNT - 1, Math.floor(level)));

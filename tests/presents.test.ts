@@ -10,7 +10,7 @@ const ticksUntilFirstDrop = Math.ceil(PRESENT_FIRST_DROP * 120) + 30;
 describe("falling birthday presents", () => {
   it("drops ahead with time to react, clear of flags and the slope edges", () => {
     for (let seed = 1; seed <= 50; seed++) {
-      const run = createRun(99, seed);
+      const run = createRun(19, seed);
       for (let i = 0; i < ticksUntilFirstDrop; i++) stepRun(run, 0, 1 / 120);
       const gift = run.presents.items.find((item) => item.phase === "falling")!;
       expect(gift).toBeDefined();

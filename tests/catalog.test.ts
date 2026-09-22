@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LAMP_CATALOG, lampPoints } from "../src/lamp-catalog";
+import { LAMP_CATALOG } from "../src/lamp-catalog";
 import { levelLamps } from "../src/levels";
 describe("100-lamp catalogue", () => {
   it("has 100 unique designs and names across five rarities", () => {
@@ -17,6 +17,5 @@ describe("100-lamp catalogue", () => {
     expect(levelLamps(19)).toEqual({ pickups: [95, 96, 97, 98], finish: 99 });
     expect(LAMP_CATALOG[levelLamps(0).finish].rarity).toBe("Common");
     expect(LAMP_CATALOG[levelLamps(19).finish].rarity).toBe("Legendary");
-    expect(lampPoints(99)).toBeGreaterThan(lampPoints(0));
   });
 });

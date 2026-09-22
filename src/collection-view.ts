@@ -1,4 +1,4 @@
-import { LAMPS_PER_LEVEL, LEVEL_COUNT, getCourse, levelLamps } from "./levels";
+import { LAMPS_PER_LEVEL, LAMP_LEVELS, LEVEL_COUNT, getCourse, levelLamps } from "./levels";
 import { LAMP_CATALOG } from "./lamp-catalog";
 import { lampArt } from "./lamp-art";
 import type { LevelProgress } from "./progress";
@@ -60,7 +60,7 @@ export class LevelMap {
       );
     };
     const sections: string[] = [];
-    for (let level = 0; level < LEVEL_COUNT; level++) {
+    for (let level = 0; level < LAMP_LEVELS; level++) {
       const { pickups, finish } = levelLamps(level);
       const ids = [finish, ...pickups].filter(wanted);
       if (!ids.length) continue;
@@ -83,6 +83,27 @@ export class LevelMap {
           <button class="level-play" data-level="${level}" ${unlocked ? "" : "disabled"}>${unlocked ? "Ski ↗" : "Locked"}</button>
         </div>
         <div class="level-lamps">${cards}</div>
+      </section>`);
+    }
+    // Beyond the summit: the bonus levels, listed once the filters are off.
+    if (this.status.value === "all" && this.rarity.value === "all") {
+      const buttons: string[] = [];
+      let cleared = 0;
+      for (let level = LAMP_LEVELS; level < LEVEL_COUNT; level++) {
+        const unlocked = this.progress.isUnlocked(level),
+          done = this.progress.passed(level),
+          current = !done && level === this.progress.unlocked,
+          best = this.progress.best[level];
+        if (done) cleared++;
+        buttons.push(`<button class="bonus-play${done ? " cleared" : current ? " current" : ""}" data-level="${level}" ${unlocked ? "" : "disabled"} aria-label="Level ${level + 1}, ${getCourse(level).name}, ${done ? "cleared" : unlocked ? "ready to ski" : "locked"}">
+          <strong>${level + 1} · ${getCourse(level).name}</strong><small>${done ? `Cleared · best ${best.toLocaleString()}` : unlocked ? `Goal ${getCourse(level).goal.toLocaleString()}` : "Locked"}</small></button>`);
+      }
+      sections.push(`<section class="level-group bonus-group${this.progress.unlocked >= LAMP_LEVELS ? "" : " locked"}" aria-label="Beyond the summit">
+        <div class="level-head">
+          <span class="level-head-title">Beyond the summit</span>
+          <span class="level-head-detail">Ten bonus levels for those who really want to. No lamps, no presents, just rock. ${cleared} / ${LEVEL_COUNT - LAMP_LEVELS} cleared</span>
+        </div>
+        <div class="bonus-levels">${buttons.join("")}</div>
       </section>`);
     }
     document.getElementById("collection-empty")!.hidden = sections.length > 0;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  LAMP_LEVELS,
   LEVEL_COUNT,
   LEVEL_DESIGNS,
   LAMPS_PER_LEVEL,
@@ -9,11 +10,12 @@ import {
   buildCourse,
   courseFingerprint,
   getCourse,
+  hazardPoolSizes,
   levelLamps,
   levelSettings,
 } from "../src/levels";
-import { LAMP_CATALOG, lampPoints } from "../src/lamp-catalog";
-import { createRun, lampScore, lampsKept, stepRun } from "../src/physics";
+import { LAMP_CATALOG } from "../src/lamp-catalog";
+import { createRun, lampsKept, stepRun } from "../src/physics";
 import { drive } from "./helpers";
 
 describe("20 hand-placed levels", () => {
@@ -31,8 +33,18 @@ describe("20 hand-placed levels", () => {
       expect(course.hint.length).toBeGreaterThan(10);
       expect(course.lampId).toBe(lamps.finish);
       expect(course.pickupLampIds).toEqual(lamps.pickups);
-      expect(course.lampSpots).toHaveLength(PICKUPS_PER_LEVEL);
-      lampIds.push(...lamps.pickups, lamps.finish);
+      if (level < LAMP_LEVELS) {
+        expect(course.lampSpots).toHaveLength(PICKUPS_PER_LEVEL);
+        expect(course.presents).toBe(true);
+        lampIds.push(...lamps.pickups, lamps.finish);
+      } else {
+        // Beyond the summit: no lamps, no presents, a rock in every empty stretch.
+        expect(course.lampSpots).toHaveLength(0);
+        expect(course.lampId).toBe(-1);
+        expect(course.presents).toBe(false);
+        expect(design.fillRocks).toBe(true);
+        expect(course.hazards.length).toBeGreaterThanOrEqual(course.gates.length - 1);
+      }
       expect(course).toEqual(buildCourse(level));
       expect(course.gates.length).toBe(design.gates.length);
       expect(course.gates.length).toBeLessThanOrEqual(MAX_GATES);
@@ -45,7 +57,7 @@ describe("20 hand-placed levels", () => {
       }
       for (const gate of course.gates) {
         expect(Math.abs(gate.x)).toBeLessThanOrEqual(9.5);
-        expect(gate.width).toBeGreaterThanOrEqual(4.5);
+        expect(gate.width).toBeGreaterThanOrEqual(level < LAMP_LEVELS ? 4.5 : 4.2);
       }
       // No stretch carries more than one feature.
       const used = [...design.lamps, ...design.weaves, ...design.rockGates, ...design.wideRocks, ...design.lineRocks];
@@ -53,10 +65,11 @@ describe("20 hand-placed levels", () => {
       for (const index of used) expect(index).toBeLessThan(course.gates.length);
     }
     expect(layouts.size).toBe(LEVEL_COUNT);
-    expect(LAMPS_PER_LEVEL * LEVEL_COUNT).toBe(LAMP_CATALOG.length);
+    expect(LAMPS_PER_LEVEL * LAMP_LEVELS).toBe(LAMP_CATALOG.length);
     expect([...lampIds].sort((a, b) => a - b)).toEqual(LAMP_CATALOG.map((lamp) => lamp.id));
     expect(LAMP_CATALOG[levelLamps(0).finish].rarity).toBe("Common");
-    expect(LAMP_CATALOG[levelLamps(LEVEL_COUNT - 1).finish].rarity).toBe("Legendary");
+    expect(LAMP_CATALOG[levelLamps(LAMP_LEVELS - 1).finish].rarity).toBe("Legendary");
+    expect(levelLamps(LEVEL_COUNT - 1)).toEqual({ pickups: [], finish: -1 });
     expect(getCourse(-5)).toBe(getCourse(0));
     expect(getCourse(500)).toBe(getCourse(LEVEL_COUNT - 1));
   });
@@ -83,14 +96,16 @@ describe("20 hand-placed levels", () => {
     for (let level = 1; level < LEVEL_COUNT; level++) {
       const a = levelSettings(level - 1),
         b = levelSettings(level);
-      expect(b.speed).toBeGreaterThan(a.speed);
+      // The bonus ladder restarts a little slower than the summit, then climbs again.
+      if (level !== LAMP_LEVELS) expect(b.speed).toBeGreaterThan(a.speed);
       expect(b.baseWidth).toBeLessThanOrEqual(a.baseWidth + 0.5);
     }
+    expect(levelSettings(LAMP_LEVELS).speed).toBeGreaterThan(levelSettings(LAMP_LEVELS - 5).speed);
     expect(levelSettings(LEVEL_COUNT - 1).baseWidth).toBeLessThan(levelSettings(0).baseWidth * 0.7);
     const first = getCourse(0),
       last = getCourse(LEVEL_COUNT - 1);
     expect(first.hazards).toHaveLength(0);
-    expect(last.hazards.length).toBeGreaterThan(15);
+    expect(last.hazards.length).toBeGreaterThan(25);
     expect(last.gates.length).toBe(MAX_GATES);
     expect(last.goal).toBeGreaterThan(first.goal * 5);
     expect(last.speed).toBeGreaterThan(first.speed * 1.7);
@@ -109,7 +124,7 @@ describe("20 hand-placed levels", () => {
       expect(plain.lamps).toBe(c.lampSpots.length);
       expect(a.worstMargin).toBeGreaterThan(0.4);
       expect(
-        plain.score - plain.timeBonus - plain.presents.collected * 200 - plain.bullseyes * 50 - lampScore(plain),
+        plain.score - plain.timeBonus - plain.presents.collected * 200 - plain.bullseyes * 50,
       ).toBe(c.maxGateScore);
       expect(plain.time).toBeGreaterThan(15);
       expect(plain.time).toBeLessThan(45);
@@ -122,6 +137,15 @@ describe("20 hand-placed levels", () => {
       for (let i = 0; i < 120 * 120 && !run.finished; i++) stepRun(run, 0, 1 / 120);
       expect(run.finished).toBe(true);
       expect(run.passed).toBe(false);
+    }
+  });
+  it("drops no presents on the bonus levels", () => {
+    for (const level of [LAMP_LEVELS, LEVEL_COUNT - 1]) {
+      const run = createRun(level);
+      drive(run);
+      expect(run.finished).toBe(true);
+      expect(run.presents.collected).toBe(0);
+      expect(run.presents.items.every((item) => item.phase === "inactive")).toBe(true);
     }
   });
   it("fixes every element of a level, presents included", () => {
@@ -181,11 +205,25 @@ describe("20 hand-placed levels", () => {
     expect(run.lampsAvailable).toBe(2);
     drive(run);
     expect(run.lamps).toBe(2);
-    expect(lampScore(run)).toBe(lampPoints(first) * 2);
+    // Lamps score nothing, so a replay with lamps already owned has the same maximum.
+    expect(run.score - run.timeBonus - run.presents.collected * 200 - run.bullseyes * 50).toBe(run.course.maxGateScore);
     expect(run.goal).toBe(run.course.goal);
     const summit = createRun(19, undefined, Array(100).fill(true));
     expect(summit.lampsAvailable).toBe(0);
     expect(summit.goal).toBe(summit.course.goal);
+  });
+  it("reports pool sizes that fit the rockiest level, so every hazard is drawn", () => {
+    const pools = hazardPoolSizes();
+    let maxRocks = 0;
+    for (let level = 0; level < LEVEL_COUNT; level++) {
+      const hazards = getCourse(level).hazards;
+      const rocks = hazards.filter((h) => h.kind === "rock").length;
+      maxRocks = Math.max(maxRocks, rocks);
+      expect(rocks).toBeLessThanOrEqual(pools.rocks);
+      expect(hazards.filter((h) => h.kind === "tree").length).toBeLessThanOrEqual(pools.trees);
+    }
+    expect(pools.rocks).toBe(maxRocks);
+    expect(pools.rocks).toBeGreaterThan(28);
   });
   it("keeps hazards clear of gate lines and pickups beside a fork rock", () => {
     for (let level = 0; level < LEVEL_COUNT; level++) {

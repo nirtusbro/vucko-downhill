@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LevelProgress } from "../src/progress";
-import { LEVEL_COUNT, levelLamps } from "../src/levels";
+import { LAMP_LEVELS, LEVEL_COUNT, levelLamps } from "../src/levels";
 
 describe("level progress", () => {
   let data: Map<string, string>;
@@ -52,6 +52,29 @@ describe("level progress", () => {
     expect(reloaded.best[0]).toBe(2000);
     expect(reloaded.lampsFound(0)).toBe(1);
   });
+  it("clears bonus levels without any lamp and remembers clears from older saves", () => {
+    const progress = new LevelProgress();
+    expect(progress.complete(LAMP_LEVELS, 5000, true)).toEqual({ newBest: true, newlyEarned: true });
+    expect(progress.passed(LAMP_LEVELS)).toBe(true);
+    expect(progress.earnedCount).toBe(0);
+    expect(progress.unlocked).toBe(LAMP_LEVELS + 1);
+    expect(progress.lampsFound(LAMP_LEVELS)).toBe(0);
+    expect(new LevelProgress().passed(LAMP_LEVELS)).toBe(true);
+    data.set("vucko-downhill:levels-v2", '{"version":2,"unlocked":2,"lamps":[4,9],"best":[]}');
+    const older = new LevelProgress();
+    expect(older.passed(0)).toBe(true);
+    expect(older.passed(1)).toBe(true);
+    expect(older.passed(2)).toBe(false);
+    expect(older.clearedCount).toBe(2);
+    // A save that finished all twenty levels before the bonus ladder existed opens level 21.
+    const finished = Array.from({ length: 100 }, (_, i) => i);
+    data.set("vucko-downhill:levels-v2", JSON.stringify({ version: 2, unlocked: 19, lamps: finished, best: [] }));
+    const veteran = new LevelProgress();
+    expect(veteran.clearedCount).toBe(LAMP_LEVELS);
+    expect(veteran.unlocked).toBe(LAMP_LEVELS);
+    expect(veteran.isUnlocked(LAMP_LEVELS)).toBe(true);
+    expect(veteran.isUnlocked(LAMP_LEVELS + 1)).toBe(false);
+  });
   it("caps at the last level and ignores damaged saves", () => {
     const progress = new LevelProgress();
     progress.complete(LEVEL_COUNT - 1, 100, true);
@@ -62,7 +85,8 @@ describe("level progress", () => {
       '{"version":2,"unlocked":500,"lamps":[-1,3,"x",99],"best":[-5,1e20,7]}',
     );
     const damaged = new LevelProgress();
-    expect(damaged.unlocked).toBe(0);
+    // Lamp 99 is the level-20 finish lamp, so owning it opens level 21.
+    expect(damaged.unlocked).toBe(LAMP_LEVELS);
     expect(damaged.lamps[3]).toBe(true);
     expect(damaged.lamps[99]).toBe(true);
     expect(damaged.earnedCount).toBe(2);
