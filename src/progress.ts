@@ -56,10 +56,10 @@ export class LevelProgress {
     this.save();
     return isNew;
   }
-  /** Records a finished run; returns what changed so the results can celebrate it. */
+  /** Records a finished run; only passed runs count as a level best. */
   complete(level: number, score: number, passed: boolean) {
     if (!validLevel(level)) return { newBest: false, newlyEarned: false };
-    const newBest = score > this.best[level];
+    const newBest = passed && score > this.best[level];
     if (newBest) this.best[level] = score;
     const finish = levelLamps(level).finish;
     const newlyEarned = passed && !this.lamps[finish];

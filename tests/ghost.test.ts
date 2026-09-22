@@ -46,13 +46,15 @@ describe("pace ghost", () => {
     });
     afterEach(() => vi.unstubAllGlobals());
     it("saves one rounded ghost per difficulty and rejects damaged saves", () => {
-      saveGhost(4, [0, 0, 0.123, 3.456, 1, 6]);
-      expect(loadGhost(4)).toEqual([0, 0, 0.1, 3.5, 1, 6]);
-      expect(loadGhost(5)).toBeNull();
-      data.set("vucko-downhill:ghost:level-5", "[1,2,3]");
-      expect(loadGhost(5)).toBeNull();
+      saveGhost(4, [0, 0, 0.123, 3.456, 1, 6], "layout-a");
+      expect(loadGhost(4, "layout-a")).toEqual([0, 0, 0.1, 3.5, 1, 6]);
+      // A ghost from an older layout of the level is ignored.
+      expect(loadGhost(4, "layout-b")).toBeNull();
+      expect(loadGhost(5, "layout-a")).toBeNull();
+      data.set("vucko-downhill:ghost:level-5", "[1,2,3,4]");
+      expect(loadGhost(5, "layout-a")).toBeNull();
       data.set("vucko-downhill:ghost:level-6", "{not json");
-      expect(loadGhost(6)).toBeNull();
+      expect(loadGhost(6, "layout-a")).toBeNull();
     });
   });
 });

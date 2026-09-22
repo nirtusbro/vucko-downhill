@@ -49,26 +49,37 @@ export function paceDelta(trace: Trace, run: Pick<Run, "z" | "time">) {
   }
   return run.time - ghostTime;
 }
-export function loadGhost(level: number): Trace | null {
+/** The saved ghost for a level, or null if there is none or it was recorded on another layout. */
+export function loadGhost(level: number, fingerprint: string): Trace | null {
   try {
     const parsed: unknown = JSON.parse(
       readValue(`ghost:level-${level}`, "null"),
     );
     if (
-      Array.isArray(parsed) &&
-      parsed.length >= 4 &&
-      parsed.length % 2 === 0 &&
-      parsed.every((n) => typeof n === "number" && Number.isFinite(n))
-    )
-      return parsed as Trace;
+      typeof parsed === "object" &&
+      parsed !== null &&
+      (parsed as { fingerprint?: unknown }).fingerprint === fingerprint
+    ) {
+      const trace = (parsed as { trace?: unknown }).trace;
+      if (
+        Array.isArray(trace) &&
+        trace.length >= 4 &&
+        trace.length % 2 === 0 &&
+        trace.every((n) => typeof n === "number" && Number.isFinite(n))
+      )
+        return trace as Trace;
+    }
   } catch {
     /* A damaged ghost simply does not race. */
   }
   return null;
 }
-export function saveGhost(level: number, trace: Trace) {
+export function saveGhost(level: number, trace: Trace, fingerprint: string) {
   writeValue(
     `ghost:level-${level}`,
-    JSON.stringify(trace.map((n) => Math.round(n * 10) / 10)),
+    JSON.stringify({
+      fingerprint,
+      trace: trace.map((n) => Math.round(n * 10) / 10),
+    }),
   );
 }

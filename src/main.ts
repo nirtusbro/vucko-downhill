@@ -9,7 +9,7 @@ import {
   COMBO_CAP,
   CRASH_PENALTY,
 } from "./physics";
-import { LEVEL_COUNT, getCourse } from "./levels";
+import { LEVEL_COUNT, courseFingerprint, getCourse } from "./levels";
 import { SkiInput } from "./input";
 import { SkiScene } from "./scene";
 import { SkiAudio } from "./audio";
@@ -50,7 +50,7 @@ let newlyEarned = false;
 let discoveries = 0;
 let elapsed = 0;
 let trace: Trace = [];
-let ghost: Trace | null = loadGhost(level);
+let ghost: Trace | null = loadGhost(level, courseFingerprint(getCourse(level)));
 const paceEl = el("pace"),
   goalEl = el("goal");
 const timeEl = el("time"),
@@ -100,7 +100,7 @@ function refreshHome() {
 function selectLevel(next: number) {
   level = Math.max(0, Math.min(progress.unlocked, next));
   run = createRun(level, undefined, progress.lamps);
-  ghost = loadGhost(level);
+  ghost = loadGhost(level, courseFingerprint(run.course));
   refreshHome();
 }
 el("level-prev").onclick = () => selectLevel(level - 1);
@@ -176,7 +176,7 @@ function start() {
   feedback.textContent = "";
   combo.textContent = "";
   trace = [];
-  ghost = loadGhost(level);
+  ghost = loadGhost(level, courseFingerprint(run.course));
   scene.ghostTrace = ghost;
   scene.reset();
   changeMode("playing");
@@ -282,7 +282,7 @@ function event(name: string) {
     levelMap.refreshHome();
     newBest = result.newBest;
     newlyEarned = result.newlyEarned;
-    if (newBest) saveGhost(level, trace);
+    if (newBest) saveGhost(level, trace, courseFingerprint(run.course));
     finishDelay = 1.8;
     changeMode("celebrating");
     tutorialEl.hidden = true;

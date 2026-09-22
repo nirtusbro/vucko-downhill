@@ -432,6 +432,9 @@ export function buildCourse(level: number): Course {
     goal,
   };
 }
+/** A short signature of a level's layout; a ghost recorded on a different layout is discarded. */
+export const courseFingerprint = (course: Course) =>
+  `${course.gates.map((g) => `${g.x}:${g.z}:${Math.round(g.width * 10)}`).join(",")}|${course.finishZ}|${course.hazards.length}`;
 const cache = new Map<number, Course>();
 export function getCourse(level: number) {
   const key = Math.max(0, Math.min(LEVEL_COUNT - 1, Math.floor(level)));

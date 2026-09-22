@@ -36,10 +36,11 @@ describe("level progress", () => {
   it("earns the finish lamp and unlocks the next level only when the goal is reached", () => {
     const progress = new LevelProgress();
     const { finish } = levelLamps(0);
-    expect(progress.complete(0, 900, false)).toEqual({ newBest: true, newlyEarned: false });
+    // A failed run never counts as a level best, however high it scored.
+    expect(progress.complete(0, 900, false)).toEqual({ newBest: false, newlyEarned: false });
     expect(progress.lamps[finish]).toBe(false);
     expect(progress.unlocked).toBe(0);
-    expect(progress.best[0]).toBe(900);
+    expect(progress.best[0]).toBe(0);
     expect(progress.complete(0, 2000, true)).toEqual({ newBest: true, newlyEarned: true });
     expect(progress.passed(0)).toBe(true);
     expect(progress.unlocked).toBe(1);

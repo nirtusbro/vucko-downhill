@@ -2,6 +2,8 @@
 
 ## Automated checks
 
+- Ghost from passed runs: 65 tests pass, including checks that a failed run never sets a level best, that every level has a distinct layout fingerprint, and that a ghost saved under another fingerprint is ignored on load.
+- Ghost from passed runs: 65 tests pass, including checks that a failed run never sets a level best, that every level has a distinct layout fingerprint, and that a ghost saved under another fingerprint is ignored on load.
 - Lamps kept on a pass: 64 tests pass, including a check that a passed run keeps all four new pickups, a failed run keeps none, an unfinished run keeps none, and a replay keeps only pickups not already owned.
 - No boost: with boost removed, 63 tests pass; the sweep finds every gate and pickup reachable on all twenty levels with no tumbles, every goal passable, and a straight line failing everywhere. The HUD no longer shows a Speed up button, and the how-to page describes steering only.
 - Clean passes: after moving Squeeze and Halfway sprint to levels 4 and 5, the sweep still finds every gate and pickup reachable on all twenty levels with no tumbles, every goal passable without boost except the two boost levels, and a straight line failing everywhere; a run that misses a gate can no longer pass, and a tumble deducts 300 points. Browser at 390 × 844: an un-steered level-one run turned the HUD goal line red at the first missed gate, the results read the missed-gate count with “every gate is needed”, and the next-level card stayed hidden; the card itself renders above the results table with the next level’s name, hint, lamp and goal.

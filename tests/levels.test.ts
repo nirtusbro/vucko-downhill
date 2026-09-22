@@ -7,6 +7,7 @@ import {
   MAX_COURSE_LENGTH,
   PICKUPS_PER_LEVEL,
   buildCourse,
+  courseFingerprint,
   getCourse,
   levelLamps,
   levelSettings,
@@ -135,6 +136,17 @@ describe("20 hand-placed levels", () => {
       expect(a.presents.items).toEqual(b.presents.items);
     }
     expect(createRun(0).presents.seed).not.toBe(createRun(1).presents.seed);
+  });
+  it("fingerprints each layout so ghosts from older versions are dropped", () => {
+    const prints = new Set<string>();
+    for (let level = 0; level < LEVEL_COUNT; level++) {
+      const print = courseFingerprint(getCourse(level));
+      expect(print).toBe(courseFingerprint(buildCourse(level)));
+      prints.add(print);
+    }
+    expect(prints.size).toBe(LEVEL_COUNT);
+    const altered = { ...getCourse(0), gates: getCourse(0).gates.map((g, i) => (i ? g : { ...g, x: g.x + 1 })) };
+    expect(courseFingerprint(altered)).not.toBe(courseFingerprint(getCourse(0)));
   });
   it("keeps slope lamps only when the level is passed on that run", () => {
     const passed = createRun(0);
