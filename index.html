@@ -35,106 +35,18 @@
           <h1>Vučko<span>Downhill days</span></h1>
           <p class="birthday-note">Happy birthday, Ljubica!</p>
         </div>
-        <aside class="lamp-shelf" aria-labelledby="shelf-title">
-          <div class="shelf-heading">
-            <h2 id="shelf-title">Ljubica’s lamp shelf</h2>
-            <span id="collection-total">Bring home a little light</span>
-          </div>
-          <div class="shelf-lamps">
-            <div
-              id="shelf-lamp-0"
-              class="shelf-lamp"
-              role="img"
-              aria-label="Rose mushroom: 0 collected"
-            >
-              <svg viewBox="0 0 80 80" aria-hidden="true">
-                <ellipse class="lamp-halo" cx="40" cy="53" rx="28" ry="22" />
-                <path fill="#c69862" d="M27 71q13-7 26 0v3H27z" />
-                <path fill="#e4a29e" d="M35 33h10l4 35H31z" />
-                <path fill="#f8e7b8" d="M10 34h60v5H10z" />
-                <path fill="#d98a91" d="M8 34C8 0 72 0 72 34z" />
-                <path
-                  fill="none"
-                  stroke="#efbabb"
-                  stroke-width="3"
-                  d="M18 26Q22 13 34 12"
-                /></svg
-              ><strong>—</strong><span>Rose</span>
-            </div>
-            <div
-              id="shelf-lamp-1"
-              class="shelf-lamp"
-              role="img"
-              aria-label="Lavender pleats: 0 collected"
-            >
-              <svg viewBox="0 0 80 80" aria-hidden="true">
-                <ellipse class="lamp-halo" cx="40" cy="53" rx="28" ry="22" />
-                <path stroke="#bb9254" stroke-width="4" d="M40 37v32" />
-                <ellipse fill="#d5b575" cx="40" cy="72" rx="17" ry="3" />
-                <path fill="#ac99c9" d="M25 9h30l12 32H13z" />
-                <path
-                  stroke="#d7c6e9"
-                  stroke-width="2"
-                  d="m28 10-8 30m14-30-3 30m9-30v30m6-30 3 30m3-30 8 30"
-                />
-                <path stroke="#c5a568" stroke-width="3" d="M13 42h54" />
-                <circle fill="#f5e7c7" cx="40" cy="57" r="6" /></svg
-              ><strong>—</strong><span>Pleats</span>
-            </div>
-            <div
-              id="shelf-lamp-2"
-              class="shelf-lamp"
-              role="img"
-              aria-label="Emerald banker: 0 collected"
-            >
-              <svg viewBox="0 0 80 80" aria-hidden="true">
-                <ellipse class="lamp-halo" cx="40" cy="53" rx="28" ry="22" />
-                <ellipse fill="#c7a36c" cx="40" cy="71" rx="20" ry="4" />
-                <ellipse fill="#6b9f8e" cx="40" cy="68" rx="16" ry="3" />
-                <path
-                  fill="none"
-                  stroke="#c7a36c"
-                  stroke-width="4"
-                  d="M40 66V28"
-                />
-                <path
-                  fill="#f5e6b5"
-                  stroke="#bf9b5d"
-                  stroke-width="2"
-                  d="M9 26h62v7H9z"
-                />
-                <path fill="#6aa48e" d="M8 27C8 5 72 5 72 27z" />
-                <path
-                  fill="none"
-                  stroke="#a8d0b5"
-                  stroke-width="3"
-                  d="M17 21q10-11 30-7"
-                />
-                <path stroke="#bfa16b" d="M62 33v22" />
-                <circle fill="#c7a36c" cx="62" cy="57" r="2" /></svg
-              ><strong>—</strong><span>Banker</span>
-            </div>
-            <div
-              id="shelf-lamp-3"
-              class="shelf-lamp"
-              role="img"
-              aria-label="Blue porcelain: 0 collected"
-            >
-              <svg viewBox="0 0 80 80" aria-hidden="true">
-                <ellipse class="lamp-halo" cx="40" cy="53" rx="28" ry="22" />
-                <ellipse fill="#c5a366" cx="40" cy="72" rx="17" ry="3" />
-                <path
-                  fill="#8cb2c9"
-                  d="M35 36h10c-7 13 10 12 9 25 0 12-28 12-28 0-1-13 16-12 9-25"
-                />
-                <path fill="#e1edf1" d="M35 52q-9 8 0 14zm10 0q9 8 0 14z" />
-                <path fill="#f4e9d2" stroke="#c5ad84" d="M25 8h30l11 30H14z" />
-                <path fill="#91b9cf" d="M13 38h54v3H13z" />
-                <circle fill="#c5a366" cx="40" cy="6" r="2" /></svg
-              ><strong>—</strong><span>Porcelain</span>
-            </div>
-          </div>
-        </aside>
+        <button
+          id="collection-open"
+          class="lamp-shelf collection-launch"
+          aria-label="Open lamp collection"
+        >
+          <span class="shelf-heading"
+            ><strong>Ljubica’s lamps</strong
+            ><span id="collection-total">0 / 100 found</span></span
+          >
+          <span id="shelf-preview" class="shelf-lamps"></span>
+          <span class="collection-link">View collection <span>→</span></span>
+        </button>
         <div class="menu-bottom">
           <div class="course-note">
             <span class="mountain-mark">△</span> Bjelašnica
@@ -166,16 +78,74 @@
             >
           </fieldset>
           <div class="difficulty-info" aria-live="polite">
-            <span id="difficulty-detail">Fast turns, find your rhythm</span
-            ><span id="difficulty-best">Best 0</span>
+            <span id="difficulty-detail">Fast turns, find your rhythm</span>
+            <div class="home-record">
+              <span>High score <b id="high-score-mode">Classic</b></span
+              ><strong id="home-high-score">0</strong>
+            </div>
           </div>
           <button id="play" class="primary">Let’s ski <span>↗</span></button
           ><button id="how" class="text-button">How to play</button>
-          <p class="desktop-hint">Drag to carve <span>·</span> or use ← →</p>
+          <p class="desktop-hint">
+            ← → to carve <span>·</span> Hold Space to boost
+          </p>
         </div>
         <div class="menu-footer">
           <span>A mountain of wishes, just for you</span
           ><span>Est. 1984 <b>✳</b></span>
+        </div>
+      </section>
+      <section
+        id="collection-screen"
+        class="collection-screen"
+        hidden
+        aria-labelledby="collection-title"
+      >
+        <div class="collection-wrap">
+          <header class="collection-header">
+            <button id="collection-close" class="secondary">← Back</button
+            ><span>Your keepsakes</span>
+          </header>
+          <div class="collection-title-row">
+            <div>
+              <p class="collection-eyebrow">Ljubica’s collection</p>
+              <h2 id="collection-title">A little more light.</h2>
+            </div>
+            <strong id="catalog-progress">0 / 100</strong>
+          </div>
+          <div class="catalog-progress-track">
+            <i id="catalog-progress-bar"></i>
+          </div>
+          <p id="collection-intro">
+            A hundred little lights to bring home. Find new designs on every
+            run.
+          </p>
+          <div class="collection-filters">
+            <label
+              >Show<select id="collection-filter">
+                <option value="all">All lamps</option>
+                <option value="found">Collected</option>
+                <option value="missing">Still to find</option>
+              </select></label
+            ><label
+              >Rarity<select id="rarity-filter">
+                <option value="all">All rarities</option>
+                <option>Common</option>
+                <option>Uncommon</option>
+                <option>Rare</option>
+                <option>Epic</option>
+                <option>Legendary</option>
+              </select></label
+            >
+          </div>
+          <div id="collection-grid" class="collection-grid"></div>
+          <p id="collection-empty" hidden>
+            No lamps here yet. Try another filter or head back to the slope.
+          </p>
+          <p class="collection-note">
+            Common · Uncommon · Rare · Epic · Legendary<br />Rarer lamps appear
+            less often. Every pickup is saved, even if you leave a run early.
+          </p>
         </div>
       </section>
       <section id="hud" hidden aria-label="Race information">
@@ -222,6 +192,22 @@
           ><span id="speed">0 <small>km/h</small></span>
         </div>
         <div id="steering" hidden><i></i><b></b></div>
+        <div id="race-controls">
+          <button
+            id="boost"
+            class="boost-button"
+            aria-label="Hold to speed up"
+            aria-pressed="false"
+            aria-keyshortcuts="Space"
+          >
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <path d="m18 3-11 15h8l-1 11 11-16h-8z" /></svg
+            ><strong id="boost-label">Speed up</strong><small>Hold</small>
+          </button>
+          <div class="steer-hint" aria-hidden="true">
+            <span>↔</span>Right thumb<br />to steer
+          </div>
+        </div>
       </section>
       <section id="pause-screen" class="overlay" hidden>
         <div class="dialog">
@@ -238,8 +224,9 @@
           <span class="dialog-symbol">↔</span>
           <h2>Find your flow.</h2>
           <p>
-            Touch the lower part of the screen and drag gently left or right to
-            carve. Release to point downhill.
+            Drag left or right with your right thumb to carve. Hold Speed up
+            with your left thumb for a 45% boost. Release to ease back to
+            cruising speed.
           </p>
           <div class="how-gates">
             <i></i
@@ -250,16 +237,21 @@
           </div>
           <p class="lamp-help">
             Take a little detour for lamps between gates.<br />Each little light
-            is worth +50 points. Collected lamps also light up your home-screen
-            shelf, across every run.
+            is worth +50 points. Discover 100 designs across five rarities in
+            your collection. New lamps appear on every run.
           </p>
           <p class="lamp-help">
             Watch for presents falling from the sky!<br />Follow the gold rings
             and collect them after they land for +200 points.
           </p>
+          <p class="lamp-help">
+            Finish faster for more points: +50 for every second under 90
+            seconds, awarded at the finish.
+          </p>
           <p class="how-small">
             Miss a gate? Keep going. Take a tumble? Vučko gets right back up.<br /><br />On
-            a keyboard, use A / D or ← / →.<br />Press Esc or P to pause.
+            a keyboard, use A / D or ← / →, and hold Space to boost.<br />Press
+            Esc or P to pause.
           </p>
           <button id="how-close" class="primary">Got it <span>✓</span></button>
         </div>
@@ -282,6 +274,17 @@
               ><strong id="result-best"></strong>
             </div>
           </div>
+          <div class="score-breakdown">
+            <span
+              >Gates &amp; pickups
+              <strong id="result-course-score">0</strong></span
+            ><span>Time bonus <strong id="result-time-bonus">+0</strong></span
+            ><small>50 points per second under 90 seconds</small>
+          </div>
+          <p id="result-discoveries" class="result-discoveries"></p>
+          <button id="finish-collection" class="text-button">
+            See your lamps →
+          </button>
           <div class="birthday-collection">
             <svg viewBox="0 0 28 30" aria-hidden="true">
               <path d="M7 3h14l5 13H2z" />

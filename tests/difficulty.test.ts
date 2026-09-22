@@ -64,7 +64,9 @@ describe("difficulty", () => {
       expect(run.finished).toBe(true);
       expect(run.hits).toBe(20);
       expect(run.lamps).toBe(20);
-      expect(run.score).toBe(8400 + run.presents.collected * 200);
+      expect(run.score).toBe(
+        8400 + run.presents.collected * 200 + run.timeBonus,
+      );
       expect(run.time).toBeGreaterThan(27);
       expect(run.time).toBeLessThan(60);
     });

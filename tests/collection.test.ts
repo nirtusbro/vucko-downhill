@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LampCollection } from "../src/collection";
-
-describe("Ljubica's saved lamp shelf", () => {
+describe("saved 100-lamp collection", () => {
   let data: Map<string, string>;
   beforeEach(() => {
     data = new Map();
@@ -11,47 +10,44 @@ describe("Ljubica's saved lamp shelf", () => {
     });
   });
   afterEach(() => vi.unstubAllGlobals());
-  it("starts empty and saves every pickup by its matching design", () => {
+  it("stores unique IDs and distinguishes first discoveries from repeats", () => {
     const shelf = new LampCollection();
-    expect(shelf.counts).toEqual([0, 0, 0, 0]);
-    for (const index of [0, 4, 9, 14, 19]) shelf.add(index);
-    expect(shelf.counts).toEqual([2, 1, 1, 1]);
-    expect(new LampCollection().counts).toEqual([2, 1, 1, 1]);
+    expect(shelf.counts).toHaveLength(100);
+    expect(shelf.add(99)).toBe(true);
+    expect(shelf.add(99)).toBe(false);
+    shelf.add(48);
+    const reloaded = new LampCollection();
+    expect(reloaded.counts[99]).toBe(2);
+    expect(reloaded.counts[48]).toBe(1);
+    expect(reloaded.discovered).toBe(2);
   });
-  it("retains pickups between runs and reloads, including repeat designs", () => {
-    new LampCollection().add(2);
-    const nextRun = new LampCollection();
-    nextRun.add(2);
-    expect(new LampCollection().counts).toEqual([0, 0, 2, 0]);
+  it("migrates the four original lamps exactly once without losing counts", () => {
+    data.set("vucko-downhill:lamp-collection", "[10,7,6,6]");
+    const shelf = new LampCollection();
+    expect(shelf.counts.slice(0, 4)).toEqual([10, 7, 6, 6]);
+    expect(shelf.discovered).toBe(4);
+    shelf.add(4);
+    expect(new LampCollection().counts[4]).toBe(1);
+    expect(new LampCollection().counts[0]).toBe(10);
   });
-  it("ignores invalid saved data and invalid pickup indices", () => {
-    for (const invalid of [
-      "broken",
-      "null",
-      "{}",
-      "[1,2]",
-      '[3,-2,"5",null]',
-    ]) {
-      data.set("vucko-downhill:lamp-collection", invalid);
-      const shelf = new LampCollection();
-      expect(shelf.counts).toEqual([0, 0, 0, 0]);
-      shelf.add(-1);
-      shelf.add(NaN);
-      expect(shelf.counts).toEqual([0, 0, 0, 0]);
-    }
+  it("ignores damaged saves and invalid lamp IDs", () => {
+    data.set("vucko-downhill:lamp-catalog-v1", '{"counts":[-1]}');
+    const shelf = new LampCollection();
+    for (const id of [-1, 100, NaN, 1.5]) expect(shelf.add(id)).toBe(false);
+    expect(shelf.discovered).toBe(0);
   });
-  it("keeps a session collection when browser storage is unavailable", () => {
+  it("keeps session pickups if browser storage is blocked", () => {
     vi.stubGlobal("localStorage", {
       getItem: () => {
-        throw new Error("blocked");
+        throw Error();
       },
       setItem: () => {
-        throw new Error("full");
+        throw Error();
       },
     });
     const shelf = new LampCollection();
-    shelf.add(3);
-    shelf.add(7);
-    expect(shelf.counts).toEqual([0, 0, 0, 2]);
+    shelf.add(87);
+    shelf.add(87);
+    expect(shelf.counts[87]).toBe(2);
   });
 });

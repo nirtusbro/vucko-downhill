@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { FINISH_Z, LAMPS, snowHeight, type Run } from "./physics";
-import { LAMP_NAMES } from "./collection";
+import { lampModel } from "./lamp-model";
 import { box, cylinder, material, rod, shape, sphere } from "./geometry";
 import { PRESENT_FALL_TIME, PRESENT_POOL_SIZE } from "./presents";
 
@@ -17,79 +17,6 @@ const bulb = new THREE.MeshBasicMaterial({
 const ribbon = material("#f5d591"),
   oak = material("#a87d5b");
 const palettes = [rose, lilac, mint, powder];
-
-/** Four small table-lamp sculptures. Clones share geometry/materials. No dynamic lights. */
-function makeLamp(style: number) {
-  const g = new THREE.Group();
-  g.name = LAMP_NAMES[style];
-  shape(g, cylinder, brass, [0, 0.08, 0], [0.4, 0.12, 0.4]);
-  shape(g, cylinder, palettes[style], [0, 0.16, 0], [0.3, 0.08, 0.3]);
-  shape(g, cylinder, brass, [0, 0.7, 0], [0.045, 1.05, 0.045]);
-  shape(g, sphere, bulb, [0, 1.18, 0], [0.19, 0.22, 0.19]);
-  if (style === 0) {
-    shape(g, sphere, rose, [0, 0.57, 0], [0.16, 0.47, 0.16]);
-    shape(
-      g,
-      new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2),
-      rose,
-      [0, 1.16, 0],
-      [0.72, 0.52, 0.72],
-    );
-    shape(g, cylinder, ivory, [0, 1.16, 0], [0.67, 0.035, 0.67]);
-    shape(g, cylinder, brass, [0, 1.14, 0], [0.72, 0.025, 0.72]);
-  } else if (style === 1) {
-    const pleats = new THREE.CylinderGeometry(0.38, 0.68, 0.7, 32, 1, true);
-    const p = pleats.attributes.position;
-    for (let i = 0; i < p.count; i++) {
-      const angle = Math.atan2(p.getX(i), p.getZ(i));
-      const factor = 1 + Math.cos(angle * 16) * 0.055;
-      p.setX(i, p.getX(i) * factor);
-      p.setZ(i, p.getZ(i) * factor);
-    }
-    pleats.computeVertexNormals();
-    const shade = new THREE.MeshLambertMaterial({
-      color: "#b8a4cd",
-      side: THREE.DoubleSide,
-    });
-    shape(g, pleats, shade, [0, 1.37, 0], [1, 1, 1]);
-    shape(g, cylinder, brass, [0, 1.015, 0], [0.69, 0.027, 0.69]);
-    shape(g, sphere, brass, [0, 1.77, 0], [0.07, 0.09, 0.07]);
-    shape(g, sphere, ivory, [0, 0.54, 0], [0.17, 0.23, 0.17]);
-  } else if (style === 2) {
-    shape(g, sphere, mint, [0, 1.42, 0], [0.77, 0.29, 0.4]);
-    shape(g, box, brass, [0, 1.25, 0], [1.36, 0.045, 0.65]);
-    shape(g, box, bulb, [0, 1.22, 0], [1.12, 0.025, 0.5]);
-    shape(g, cylinder, brass, [0.5, 0.97, 0], [0.013, 0.55, 0.013]);
-    shape(g, sphere, brass, [0.5, 0.69, 0], [0.038, 0.06, 0.038]);
-    shape(g, cylinder, mint, [0, 0.24, 0], [0.29, 0.13, 0.29]);
-  } else {
-    shape(g, sphere, powder, [0, 0.53, 0], [0.28, 0.39, 0.28]);
-    shape(g, cylinder, brass, [0, 0.9, 0], [0.12, 0.06, 0.12]);
-    shape(
-      g,
-      new THREE.CylinderGeometry(0.37, 0.67, 0.67, 20, 1, true),
-      new THREE.MeshLambertMaterial({
-        color: "#f2e9d5",
-        side: THREE.DoubleSide,
-      }),
-      [0, 1.36, 0],
-      [1, 1, 1],
-    );
-    shape(g, cylinder, powder, [0, 1.02, 0], [0.69, 0.035, 0.69]);
-    shape(g, sphere, brass, [0, 1.76, 0], [0.075, 0.085, 0.075]);
-    for (let i = 0; i < 8; i++) {
-      const a = (i * Math.PI) / 4;
-      shape(
-        g,
-        sphere,
-        ivory,
-        [Math.cos(a) * 0.264, 0.55, Math.sin(a) * 0.264],
-        [0.038, 0.14, 0.038],
-      );
-    }
-  }
-  return g;
-}
 
 function gift(
   parent: THREE.Object3D,
@@ -181,7 +108,7 @@ export class Birthday {
   private pickupTimes = LAMPS.map(() => -10);
   private previousCollected = LAMPS.map(() => false);
   private menuDisplay = new THREE.Group();
-  private prototypes = [0, 1, 2, 3].map(makeLamp);
+  private activeLampIds: number[] | null = null;
   private fallingGifts: { model: THREE.Group; marker: THREE.Mesh }[] = [];
   constructor(scene: THREE.Scene) {
     const ring = new THREE.RingGeometry(1.8, 2.15, 32);
@@ -220,7 +147,7 @@ export class Birthday {
     for (let i = 0; i < LAMPS.length; i++) {
       const g = new THREE.Group();
       g.position.set(LAMPS[i].x, snowHeight(LAMPS[i].z), LAMPS[i].z);
-      const lamp = this.prototypes[i % 4].clone();
+      const lamp = lampModel(i % 4);
       lamp.scale.setScalar(1.22);
       lamp.name = "lamp";
       g.add(lamp);
@@ -232,6 +159,7 @@ export class Birthday {
         [1, 1, 1],
         [-Math.PI / 2 + 0.1, 0, 0],
       );
+      g.children[1].name = "glow";
       scene.add(g);
       this.lamps.push(g);
     }
@@ -273,7 +201,7 @@ export class Birthday {
         0.06,
         brass,
       );
-    const display = this.prototypes[0].clone();
+    const display = lampModel(0);
     display.position.set(x, y + 1.01, z);
     this.menuDisplay.add(display);
     gift(this.menuDisplay, x + 0.6, z + 1.3, 0.62, lilac);
@@ -285,6 +213,13 @@ export class Birthday {
     this.pickupTimes.fill(-10);
   }
   update(s: Run, time: number, mode: string) {
+    if (this.activeLampIds !== s.lampIds) {
+      this.activeLampIds = s.lampIds;
+      this.lamps.forEach((group, i) => {
+        group.remove(group.getObjectByName("lamp")!);
+        group.add(lampModel(s.lampIds[i]));
+      });
+    }
     for (const [i, visual] of this.fallingGifts.entries()) {
       const present = s.presents.items[i];
       const visible =
@@ -346,7 +281,7 @@ export class Birthday {
         lamp.position.y += age * 4;
         lamp.scale.setScalar(1.22 * Math.max(0, 1 - age / 0.42));
       }
-      g.children[1].visible = !s.collectedLamps[i];
+      g.getObjectByName("glow")!.visible = !s.collectedLamps[i];
     }
   }
 }

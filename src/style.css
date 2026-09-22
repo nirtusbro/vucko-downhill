@@ -878,16 +878,39 @@ h1 span {
 }
 .difficulty-info {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
   font-size: 9px;
   font-weight: 800;
   line-height: 1.5;
   margin: 7px 2px 15px;
-  opacity: 0.74;
 }
-#difficulty-best {
+.home-record {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
   white-space: nowrap;
+}
+.home-record > span {
+  font-size: 9px;
+  color: #647c85;
+}
+.home-record b {
+  font-size: 8px;
+  font-weight: 700;
+  margin-left: 3px;
+}
+.home-record strong {
+  font-size: 24px;
+  font-weight: 1000;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+#difficulty-detail {
+  text-align: left;
+  color: #647c85;
 }
 .run-difficulty {
   display: block;
@@ -932,7 +955,39 @@ h1 span {
     font-size: 11px;
   }
   .difficulty-info {
+    display: flex;
+    justify-content: flex-end;
+    margin: 0 2px 5px;
+  }
+  .difficulty-info #difficulty-detail {
     display: none;
+  }
+  .home-record {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .home-record strong {
+    font-size: 16px;
+  }
+  .home-record > span {
+    font-size: 8px;
+  }
+  .menu-bottom .text-button {
+    min-height: 31px;
+    padding: 8px;
+  }
+  .menu-bottom .primary {
+    height: 45px;
+  }
+  .menu-bottom .difficulty-selector {
+    margin-bottom: 4px;
+  }
+  .menu-bottom .home-record b {
+    display: none;
+  }
+  .menu-bottom .difficulty-info {
+    line-height: 1;
   }
   .result-difficulty {
     padding: 1px 10px;
@@ -980,6 +1035,108 @@ h1 span {
   display: flex;
   align-items: center;
   gap: 7px;
+}
+.boost-button {
+  position: absolute;
+  left: max(26px, env(safe-area-inset-left, 0px));
+  bottom: calc(94px + var(--safe-bottom));
+  width: 100px;
+  height: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 30px;
+  border: 2px solid #fffc;
+  background: #f7cf79ec;
+  color: #715323;
+  box-shadow:
+    0 5px 0 #c39954,
+    0 8px 20px #795c2420;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
+}
+.boost-button svg {
+  width: 29px;
+  height: 29px;
+  fill: currentColor;
+  pointer-events: none;
+}
+.boost-button strong {
+  font-size: 13px;
+  font-weight: 1000;
+  pointer-events: none;
+}
+.boost-button small {
+  font-size: 10px;
+  opacity: 0.7;
+  pointer-events: none;
+}
+.boost-button.active {
+  background: #f3a849;
+  color: #543616;
+  box-shadow:
+    0 2px 0 #bb8543,
+    0 0 30px #f0b74c80;
+  transform: translateY(3px);
+}
+.steer-hint {
+  position: absolute;
+  right: max(29px, env(safe-area-inset-right, 0px));
+  bottom: calc(104px + var(--safe-bottom));
+  width: 96px;
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: center;
+  font-weight: 800;
+  opacity: 0.45;
+  text-shadow: 0 1px 4px white;
+}
+.steer-hint span {
+  display: block;
+  font-size: 28px;
+}
+.playing #tutorial {
+  bottom: calc(215px + var(--safe-bottom));
+}
+@media (hover: hover) and (pointer: fine) {
+  .boost-button small {
+    font-size: 0;
+  }
+  .boost-button small::after {
+    content: "Hold / Space";
+    font-size: 9px;
+  }
+  .steer-hint {
+    display: none;
+  }
+}
+@media (max-height: 600px) and (orientation: landscape) {
+  .boost-button {
+    bottom: calc(55px + var(--safe-bottom));
+    width: 78px;
+    height: 78px;
+    border-radius: 24px;
+  }
+  .boost-button svg {
+    width: 24px;
+    height: 24px;
+  }
+  .boost-button strong {
+    font-size: 11px;
+  }
+  .steer-hint {
+    bottom: calc(65px + var(--safe-bottom));
+  }
+  .playing #tutorial {
+    bottom: calc(140px + var(--safe-bottom));
+  }
 }
 .lamp-counter svg,
 .present-counter svg,

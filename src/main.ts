@@ -1,4 +1,5 @@
 import "./style.css";
+import "./collection.css";
 import { createRun, stepRun, FINISH_Z, GATES } from "./physics";
 import { SkiInput } from "./input";
 import { SkiScene } from "./scene";
@@ -6,31 +7,21 @@ import { SkiAudio } from "./audio";
 import { readBest, readValue, writeValue } from "./storage";
 import { DIFFICULTIES, parseDifficulty } from "./difficulty";
 import { PRESENT_POINTS } from "./presents";
-import { LampCollection, LAMP_NAMES } from "./collection";
+import { LampCollection } from "./collection";
+import { CollectionView } from "./collection-view";
+import { LAMP_CATALOG } from "./lamp-catalog";
 
 const el = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
 const canvas = el<HTMLCanvasElement>("game");
-const input = new SkiInput(canvas);
+const boostButton = el<HTMLButtonElement>("boost");
+const input = new SkiInput(canvas, boostButton);
 const collection = new LampCollection();
-function refreshCollection() {
-  const total = collection.counts.reduce((sum, count) => sum + count, 0);
-  el("collection-total").textContent = total
-    ? `${total.toLocaleString()} collected`
-    : "Bring home a little light";
-  collection.counts.forEach((count, style) => {
-    const slot = el(`shelf-lamp-${style}`);
-    slot.classList.toggle("owned", count > 0);
-    slot.setAttribute("aria-label", `${LAMP_NAMES[style]}: ${count} collected`);
-    slot.setAttribute("title", `${LAMP_NAMES[style]} · ${count} collected`);
-    slot.querySelector("strong")!.textContent = count
-      ? `×${count.toLocaleString()}`
-      : "—";
-  });
-}
-refreshCollection();
+const collectionView = new CollectionView(collection);
+let discoveries = 0;
+let collectionReturn = "menu";
 let selectedDifficulty = parseDifficulty(readValue("difficulty", "classic"));
-let run = createRun(selectedDifficulty);
+let run = createRun(selectedDifficulty, undefined, collection.counts);
 let mode = "menu";
 let scene: SkiScene;
 const audio = new SkiAudio();
@@ -64,8 +55,9 @@ function refreshDifficulty() {
     });
   el("difficulty-detail").textContent =
     DIFFICULTIES[selectedDifficulty].description;
-  el("difficulty-best").textContent =
-    `Best ${readBest(selectedDifficulty).toLocaleString()}`;
+  el("home-high-score").textContent =
+    readBest(selectedDifficulty).toLocaleString();
+  el("high-score-mode").textContent = DIFFICULTIES[selectedDifficulty].label;
 }
 document
   .querySelectorAll<HTMLInputElement>('input[name="difficulty"]')
@@ -74,7 +66,7 @@ document
       if (!input.checked) return;
       selectedDifficulty = parseDifficulty(input.value);
       writeValue("difficulty", selectedDifficulty);
-      run = createRun(selectedDifficulty);
+      run = createRun(selectedDifficulty, undefined, collection.counts);
       best = readBest(selectedDifficulty);
       refreshDifficulty();
     });
@@ -84,29 +76,36 @@ function changeMode(next: string) {
   mode = next;
   input.enabled = mode === "playing";
   input.reset();
+  run.boosting = false;
+  boostButton.classList.remove("active");
+  boostButton.setAttribute("aria-pressed", "false");
   for (const id of [
     "menu",
     "hud",
     "pause-screen",
     "how-screen",
     "finish-screen",
+    "collection-screen",
   ])
     el(id).hidden = true;
   const screen = el(
     next === "playing" || next === "celebrating"
       ? "hud"
-      : next === "paused"
-        ? "pause-screen"
-        : next === "how"
-          ? "how-screen"
-          : next === "finished"
-            ? "finish-screen"
-            : "menu",
+      : next === "collection"
+        ? "collection-screen"
+        : next === "paused"
+          ? "pause-screen"
+          : next === "how"
+            ? "how-screen"
+            : next === "finished"
+              ? "finish-screen"
+              : "menu",
   );
   screen.hidden = false;
   screen.scrollTop = 0;
   document.body.className = next;
   el("pause").hidden = next === "celebrating";
+  el("race-controls").hidden = next !== "playing";
   audio.update(run, next === "playing");
 }
 function updateHud() {
@@ -117,13 +116,17 @@ function updateHud() {
   gatesEl.textContent = `${run.hits} / ${GATES.length}`;
   progressEl.style.width = `${(run.z / FINISH_Z) * 100}%`;
   speedEl.innerHTML = `${Math.round(run.speed * 3.6)} <small>km/h</small>`;
+  boostButton.classList.toggle("active", run.boosting);
+  boostButton.setAttribute("aria-pressed", String(run.boosting));
+  el("boost-label").textContent = run.boosting ? "Boosting" : "Speed up";
 }
 function start() {
   if (!scene) return;
   audio.unlock();
-  run = createRun(selectedDifficulty);
+  run = createRun(selectedDifficulty, undefined, collection.counts);
   best = readBest(selectedDifficulty);
   el("run-difficulty").textContent = DIFFICULTIES[run.difficulty].label;
+  discoveries = 0;
   finishDelay = 0;
   steered = false;
   gateHintShown = false;
@@ -137,7 +140,8 @@ function start() {
   updateHud();
   tutorial = !readValue("learned", "");
   tutorialEl.hidden = !tutorial;
-  tutorialEl.querySelector("p")!.textContent = "Drag left and right to carve";
+  tutorialEl.querySelector("p")!.textContent =
+    "Right thumb to steer · hold Speed up with your left";
   tutorialEl.querySelector("span")!.hidden = false;
   audio.play("start");
 }
@@ -150,7 +154,7 @@ el("resume").onclick = () => {
   changeMode("playing");
 };
 el("quit").onclick = el("finish-menu").onclick = () => {
-  run = createRun(selectedDifficulty);
+  run = createRun(selectedDifficulty, undefined, collection.counts);
   refreshDifficulty();
   scene.reset();
   changeMode("menu");
@@ -158,6 +162,20 @@ el("quit").onclick = el("finish-menu").onclick = () => {
 };
 el("how").onclick = () => changeMode("how");
 el("how-close").onclick = () => changeMode("menu");
+function openCollection(from: string) {
+  collectionReturn = from;
+  collectionView.render();
+  changeMode("collection");
+  el("collection-close").focus();
+}
+el("collection-open").onclick = () => openCollection("menu");
+el("finish-collection").onclick = () => openCollection("finished");
+el("collection-close").onclick = () => {
+  changeMode(collectionReturn);
+  el(
+    collectionReturn === "menu" ? "collection-open" : "finish-collection",
+  ).focus();
+};
 input.onSteer = () => {
   steered = true;
   if (!gateHintShown) tutorialEl.hidden = true;
@@ -169,6 +187,10 @@ window.addEventListener("blur", () => {
   if (mode === "playing") changeMode("paused");
 });
 window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && mode === "collection") {
+    el("collection-close").click();
+    return;
+  }
   if (["Escape", "p", "P"].includes(e.key)) {
     if (e.repeat) return;
     e.preventDefault();
@@ -219,7 +241,7 @@ function event(name: string) {
     feedback.textContent =
       name === "present"
         ? `Birthday bonus! +${PRESENT_POINTS}`
-        : "Lovely lamp! +50";
+        : `${LAMP_CATALOG[run.lampIds[run.lampEvent]].name} +50`;
     feedback.className = "show lamp";
     feedbackUntil = elapsed + 1.1;
     return;
@@ -242,6 +264,12 @@ function finish() {
     `${DIFFICULTIES[run.difficulty].label} best`;
   el("result-time").textContent = formatTime(run.time);
   el("result-score").textContent = run.score.toLocaleString();
+  el("result-course-score").textContent = (
+    run.score - run.timeBonus
+  ).toLocaleString();
+  el("result-time-bonus").textContent = `+${run.timeBonus.toLocaleString()}`;
+  el("result-discoveries").textContent =
+    `${discoveries} new discoveries · ${collection.discovered} / 100 lamps found`;
   el("result-gates").textContent = `${run.hits} / 20`;
   el("result-best").textContent = best.toLocaleString();
   el("result-lamps").textContent = `${run.lamps} / 20 lovely lamps`;
@@ -277,11 +305,14 @@ try {
     if (mode === "playing") {
       accumulator += dt;
       while (accumulator >= 1 / 120 && mode === "playing") {
-        stepRun(run, -input.update(1 / 120), 1 / 120);
+        stepRun(run, -input.update(1 / 120), 1 / 120, input.boosting);
         if (run.lampEvent >= 0) {
-          collection.add(run.lampEvent);
-          refreshCollection();
+          const id = run.lampIds[run.lampEvent];
+          const isNew = collection.add(id);
+          if (isNew) discoveries++;
+          collectionView.refreshHome();
           event("lamp");
+          combo.textContent = `${isNew ? "NEW DISCOVERY · " : ""}${LAMP_CATALOG[id].rarity}`;
         }
         if (run.presents.event) event("present");
         if (run.event) event(run.event);
@@ -310,7 +341,7 @@ try {
       if (finishDelay <= 0) finish();
     }
     if (elapsed > feedbackUntil) feedback.className = "";
-    scene.update(run, dt, mode, elapsed);
+    if (mode !== "collection") scene.update(run, dt, mode, elapsed);
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

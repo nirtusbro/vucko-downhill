@@ -23,13 +23,16 @@ Deploy the contents of `dist/` to any static HTTPS host. Relative asset paths su
 
 ## Play
 
-- **Phone:** touch the lower three quarters of the game and drag left/right. Displacement controls carving force. Release to straighten gradually. A full-strength turn takes roughly 90 pixels of drag on a phone.
-- **Desktop:** mouse drag, A/D, or left/right arrows. P or Esc toggles pause.
+- **Phone:** steer with your right thumb by dragging left/right. Hold the gold **Speed up** button with your left thumb for a 45% increase in target speed. Both touches work independently; releasing boost eases speed back down, while releasing steering straightens gradually. A full-strength turn takes roughly 90 pixels of drag on a phone.
+- **Desktop:** mouse drag, A/D, or left/right arrows to steer; hold Space (or the speed button) to boost. P or Esc toggles pause. Boost is unlimited, with the tradeoff of less reaction time for gates and pickups; it stops during crashes, pause and finish.
 - Pass between both flags of each gate. Hits award 100 points multiplied by a combo that caps at ×4.
 - Choose Easy, Classic or Expert on the home screen. Cruising speeds are approximately 86, 108 and 130 km/h; sharper carving costs speed. Easy has wider gates and gentler turns; Expert has tight gates and stronger turns. Your selection and each mode's best score are saved separately.
-- Collect optional table lamps in the open stretches between gates for 50 extra points. Each sits halfway to the next gate (or finish), slightly off the direct line, leaving room for a bonus detour. Four designs repeat along the course: rose mushroom, lavender pleats, emerald banker, and blue porcelain. Collected lamps float up and disappear with a chime. The HUD and finish screen show the collection count. A perfect run with all 20 lamps scores 8,400 before present bonuses.
+- A prominent **High score** on the home screen shows your saved record for the selected difficulty, updates after a new best and survives reloads.
+- Collect optional table lamps in the open stretches between gates for 50 extra points. Each sits halfway to the next gate (or finish), slightly off the direct line, leaving room for a bonus detour. Each run rolls 20 distinct designs from a catalogue of 100 lamps. Ten shape families and ten finishes vary silhouettes, proportions, colours and decorative details. Collected lamps float up and disappear with a chime. The HUD and finish screen show the collection count. A perfect run with all 20 lamps scores 8,400 before present and finish-time bonuses.
 - Birthday presents fall at random locations every 3.8–6.5 seconds. Gold rings mark their landing spots; ski close after they land for +200 points. Drops stay clear of gate stations and the slope edges, and vary each run. Missed presents disappear; they never cause a crash or break your combo.
-- Every lamp pickup is also added immediately to **Ljubica's lamp shelf** on the home screen. The four designs light up as you find them, with repeat pickups increasing their counts across runs and difficulties. The collection survives reloads in this browser, including when you leave a run early. If storage is unavailable, it remains available for the current session.
+- Every lamp pickup is saved immediately to **Ljubica’s collection**, accessible from the home screen and finish results. The gallery shows collected lamps in colour and undiscovered ones as black silhouettes, with filters for collected/missing and rarity. Counts persist across runs and reloads; the original four lamp counts migrate automatically. If storage is unavailable, progress stays available for the session.
+- **Rarity:** 40 Common, 30 Uncommon, 20 Rare, 8 Epic and 2 Legendary designs. Base tier weights are 55/25/14/5/1; weighted sampling without replacement and a 3× weight for unseen designs help collection progress. All 100 can appear in any difficulty.
+- **Finish-time bonus:** `max(0, round((90 − seconds) × 50))`, awarded only once after crossing the finish. Faster runs earn more; slow runs lose no existing points. The result shows on-slope points, time bonus and total separately. Existing high scores are preserved.
 - Missed gates break the combo. Trees, rocks and the course boundary cause a short tumble and automatic recovery.
 - The 1,000-meter, 20-gate course has gates 45 metres apart (previously 65), giving about a third less time between turns. A clean run takes roughly 30–50 seconds depending on difficulty; crashes add time. Lamps remain halfway between gate stations.
 - Sound starts only after a gesture. The mute button and best score persist on this browser. The run pauses when the page hides or loses focus.
@@ -41,13 +44,18 @@ Deploy the contents of `dist/` to any static HTTPS host. Relative asset paths su
 | `src/physics.ts`     | Renderer-independent movement, course, collisions, scoring and finish       |
 | `src/difficulty.ts`  | Speed, steering, gate opening and lamp pickup settings per mode             |
 | `src/presents.ts`    | Random timed drops, landing, swept pickup scoring and bounded gift pool    |
-| `src/collection.ts`  | Persistent lamp counts by design, shared names and storage fallback        |
+| `src/collection.ts`  | Versioned collection counts, original-save migration and storage fallback        |
+| `src/lamp-catalog.ts` | Stable 100-design catalogue and weighted run selection |
+| `src/lamp-model.ts` | Cached 3D sculptures for all ten shape families |
+| `src/lamp-art.ts` | Matching SVG collection illustrations |
+| `src/collection-view.ts` | Gallery, filters and home preview |
+| `src/scoring.ts` | Finish-time bonus formula |
 | `src/input.ts`       | Pointer capture, analog drag and keyboard input                             |
 | `src/scene.ts`       | Rendering, responsive following camera, gates and lighting                  |
 | `src/character.ts`   | Articulated wolf, scarf, skis, poles and celebration                        |
 | `src/environment.ts` | Culled scenery chunks, instanced trees/fences, mountains and cabins         |
 | `src/effects.ts`     | Fixed-size pools for world-space ski tracks and snow spray                  |
-| `src/birthday.ts`    | Four lamp designs, pickup animation, gifts, bunting and home-screen display |
+| `src/birthday.ts`    | Run lamp models, pickup animation, gifts, bunting and home display |
 | `src/audio.ts`       | Gesture-unlocked Web Audio ambience and effects                             |
 | `src/main.ts`        | Fixed-step loop, screens, HUD, tutorial and browser lifecycle               |
 

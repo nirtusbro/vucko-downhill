@@ -1,17 +1,22 @@
 import { DIFFICULTIES, gateWidth, type DifficultyId } from "./difficulty";
 import { createPresents, stepPresents } from "./presents";
+import { rollLamps } from "./lamp-catalog";
+import { finishTimeBonus } from "./scoring";
 
 export interface Run {
   difficulty: DifficultyId;
   x: number;
   z: number;
   speed: number;
+  boosting: boolean;
   heading: number;
   time: number;
   nextGate: number;
   hits: number;
   combo: number;
   score: number;
+  timeBonus: number;
+  lampIds: number[];
   lamps: number;
   collectedLamps: boolean[];
   lampEvent: number;
@@ -52,18 +57,22 @@ export const snowHeight = (z: number) =>
 export function createRun(
   difficulty: DifficultyId = "classic",
   seed = Math.floor(Math.random() * 4294967296),
+  collectionCounts: readonly number[] = [],
 ): Run {
   return {
     difficulty,
     x: 0,
     z: 0,
     speed: DIFFICULTIES[difficulty].speed * 0.5,
+    boosting: false,
     heading: 0,
     time: 0,
     nextGate: 0,
     hits: 0,
     combo: 0,
     score: 0,
+    timeBonus: 0,
+    lampIds: rollLamps(seed, collectionCounts),
     lamps: 0,
     collectedLamps: LAMPS.map(() => false),
     lampEvent: -1,
@@ -74,11 +83,12 @@ export function createRun(
     event: "",
   };
 }
-export function stepRun(s: Run, input: number, dt: number) {
+export function stepRun(s: Run, input: number, dt: number, boost = false) {
   s.event = "";
   s.lampEvent = -1;
   s.presents.event = false;
   if (s.finished || dt <= 0) return;
+  s.boosting = boost && s.crashTime === 0;
   const settings = DIFFICULTIES[s.difficulty];
   dt = Math.min(dt, 0.05);
   s.time += dt;
@@ -98,8 +108,11 @@ export function stepRun(s: Run, input: number, dt: number) {
       (clamp(input, -1, 1) * settings.turnAngle - s.heading) *
       (1 - Math.exp(-4.4 * dt));
     const targetSpeed =
-      settings.speed - Math.abs(s.heading) * 6 + Math.sin(s.z * 0.015) * 0.8;
-    s.speed += (targetSpeed - s.speed) * (1 - Math.exp(-1.1 * dt));
+      settings.speed * (s.boosting ? 1.45 : 1) -
+      Math.abs(s.heading) * 6 +
+      Math.sin(s.z * 0.015) * 0.8;
+    s.speed +=
+      (targetSpeed - s.speed) * (1 - Math.exp(-(s.boosting ? 2.4 : 1.1) * dt));
     s.x +=
       (Math.sin(oldHeading) * oldSpeed + Math.sin(s.heading) * s.speed) *
       dt *
@@ -120,6 +133,7 @@ export function stepRun(s: Run, input: number, dt: number) {
       ))
   ) {
     s.crashTime = 1.1;
+    s.boosting = false;
     s.combo = 0;
     s.event = "crash";
   }
@@ -176,6 +190,9 @@ export function stepRun(s: Run, input: number, dt: number) {
   if (s.z >= FINISH_Z) {
     s.z = FINISH_Z;
     s.finished = true;
+    s.timeBonus = finishTimeBonus(s.time);
+    s.score += s.timeBonus;
+    s.boosting = false;
     s.event = "finish";
   }
 }

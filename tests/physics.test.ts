@@ -121,7 +121,7 @@ describe("skiing", () => {
     expect(s.finished).toBe(true);
     expect(s.hits).toBe(20);
     expect(s.lamps).toBe(20);
-    expect(s.score).toBe(8400 + s.presents.collected * 200);
+    expect(s.score).toBe(8400 + s.presents.collected * 200 + s.timeBonus);
     expect(s.time).toBeGreaterThan(32);
     expect(s.time).toBeLessThan(45);
   });

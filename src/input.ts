@@ -4,15 +4,48 @@ export class SkiInput {
   value = 0;
   engaged = false;
   private pointer: number | null = null;
+  private boostPointer: number | null = null;
   private startX = 0;
   private keys = new Set<string>();
   private drag = 0;
   enabled = false;
   onSteer = () => {};
-  constructor(canvas: HTMLCanvasElement) {
+  get boosting() {
+    return (
+      this.enabled &&
+      (this.boostPointer !== null ||
+        this.keys.has(" ") ||
+        this.keys.has("enter"))
+    );
+  }
+  constructor(
+    private canvas: HTMLCanvasElement,
+    private boostButton: HTMLButtonElement,
+  ) {
+    boostButton.addEventListener("pointerdown", (e) => {
+      if (!this.enabled || e.button !== 0 || this.boostPointer !== null) return;
+      e.preventDefault();
+      this.boostPointer = e.pointerId;
+      boostButton.setPointerCapture(e.pointerId);
+    });
+    const releaseBoost = (e: PointerEvent) => {
+      if (e.pointerId === this.boostPointer) this.boostPointer = null;
+    };
+    boostButton.addEventListener("pointerup", releaseBoost);
+    boostButton.addEventListener("pointercancel", releaseBoost);
+    boostButton.addEventListener("lostpointercapture", releaseBoost);
+    boostButton.addEventListener("contextmenu", (e) => e.preventDefault());
+    boostButton.addEventListener("keydown", (e) => {
+      if (this.enabled && e.key === "Enter") {
+        e.preventDefault();
+        this.keys.add("enter");
+      }
+    });
+    boostButton.addEventListener("blur", () => this.keys.delete("enter"));
     canvas.addEventListener("pointerdown", (e) => {
       if (
         !this.enabled ||
+        e.button !== 0 ||
         e.clientY < innerHeight * 0.25 ||
         this.pointer !== null
       )
@@ -46,12 +79,12 @@ export class SkiInput {
     window.addEventListener("keydown", (e) => {
       if (
         !this.enabled ||
-        !["ArrowLeft", "ArrowRight", "a", "d", "A", "D"].includes(e.key)
+        !["ArrowLeft", "ArrowRight", "a", "d", "A", "D", " "].includes(e.key)
       )
         return;
       e.preventDefault();
       this.keys.add(e.key.toLowerCase());
-      this.onSteer();
+      if (e.key !== " ") this.onSteer();
     });
     window.addEventListener("keyup", (e) =>
       this.keys.delete(e.key.toLowerCase()),
@@ -67,7 +100,17 @@ export class SkiInput {
     return this.value;
   }
   reset() {
+    const pointer = this.pointer,
+      boostPointer = this.boostPointer;
     this.pointer = null;
+    this.boostPointer = null;
+    if (pointer !== null && this.canvas.hasPointerCapture(pointer))
+      this.canvas.releasePointerCapture(pointer);
+    if (
+      boostPointer !== null &&
+      this.boostButton.hasPointerCapture(boostPointer)
+    )
+      this.boostButton.releasePointerCapture(boostPointer);
     this.drag = 0;
     this.value = 0;
     this.engaged = false;
