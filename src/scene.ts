@@ -1,11 +1,24 @@
 import * as THREE from "three";
-import { TERRAIN_PERIOD, snowHeight, type Course, type Gate, type Run } from "./physics";
+import {
+  TERRAIN_PERIOD,
+  bankHeight,
+  crossSlope,
+  snowHeight,
+  surfaceHeight,
+  type Course,
+  type Gate,
+  type Run,
+} from "./physics";
+import { BANK_RATE } from "./levels";
 import { Vucko } from "./character";
 import { Environment } from "./environment";
 import { SnowEffects } from "./effects";
 import { Birthday } from "./birthday";
 import { Hazards } from "./hazards";
-import { ghostPose, type Trace } from "./ghost";
+import { PISTE_HALF_WIDTH, Piste } from "./piste";
+
+/** How much more than the true bank angle the skier leans, so a bank reads at a glance. */
+const BANK_LEAN = 1.6;
 
 export const mat = (color: THREE.ColorRepresentation) =>
   new THREE.MeshLambertMaterial({ color });
@@ -30,15 +43,16 @@ export class SkiScene {
   effects: SnowEffects;
   birthday: Birthday;
   hazards: Hazards;
-  ghost = new Vucko();
-  ghostTrace: Trace | null = null;
+  piste: Piste;
   shadow: THREE.Mesh;
   gateGroups: THREE.Group[] = [];
   private look = new THREE.Vector3();
   private desired = new THREE.Vector3();
+  /** The snow height the camera rides, smoothed so a knoll lifts the view without a jolt. */
+  private groundY = NaN;
   private activeCourse: Course | null = null;
   private builtGates = 0;
-  private groundTiles: THREE.Mesh[] = [];
+  private groundTiles: THREE.Group[] = [];
   private flagTextures: THREE.CanvasTexture[];
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -57,20 +71,24 @@ export class SkiScene {
     sun.position.set(-50, 90, -25);
     this.scene.add(sun);
     // Two ground tiles, each one terrain period long, leapfrog down the slope
-    // so the snow never ends however far a run goes.
-    const tile = new THREE.PlaneGeometry(1000, TERRAIN_PERIOD, 20, 216);
-    tile.rotateX(-Math.PI / 2);
-    tile.translate(0, 0, TERRAIN_PERIOD / 2);
-    const pos = tile.attributes.position;
-    for (let i = 0; i < pos.count; i++)
-      pos.setY(i, snowHeight(pos.getZ(i)) - 0.035);
-    tile.computeVertexNormals();
+    // so the snow never ends however far a run goes. Each is the flat snow
+    // either side of the piste; the piste itself is a finer strip that can
+    // bank with the course.
     const snowMaterial = new THREE.MeshBasicMaterial({
       color: "#eff6fe",
       toneMapped: false,
     });
+    const sides = [-1, 1].map((side) => {
+      const half = new THREE.PlaneGeometry(500 - PISTE_HALF_WIDTH, TERRAIN_PERIOD, 10, 216);
+      half.rotateX(-Math.PI / 2);
+      half.translate(side * (PISTE_HALF_WIDTH + (500 - PISTE_HALF_WIDTH) / 2), 0, TERRAIN_PERIOD / 2);
+      const pos = half.attributes.position;
+      for (let i = 0; i < pos.count; i++) pos.setY(i, snowHeight(pos.getZ(i)) - 0.035);
+      return half;
+    });
     for (let i = 0; i < 2; i++) {
-      const ground = mesh(tile, snowMaterial);
+      const ground = new THREE.Group();
+      for (const half of sides) ground.add(mesh(half, snowMaterial));
       this.scene.add(ground);
       this.groundTiles.push(ground);
     }
@@ -117,18 +135,7 @@ export class SkiScene {
     this.effects = new SnowEffects(this.scene);
     this.birthday = new Birthday(this.scene);
     this.hazards = new Hazards(this.scene);
-    // A pale copy of Vučko replays the best run for this level.
-    this.ghost.root.traverse((obj) => {
-      if (obj instanceof THREE.Mesh) {
-        const m = (obj.material as THREE.Material).clone();
-        m.transparent = true;
-        m.opacity = 0.3;
-        m.depthWrite = false;
-        obj.material = m;
-      }
-    });
-    this.ghost.root.visible = false;
-    this.scene.add(this.ghost.root);
+    this.piste = new Piste(this.scene);
     window.addEventListener("resize", () => this.resize());
     this.resize();
   }
@@ -225,13 +232,22 @@ export class SkiScene {
       const k = base + i;
       ground.position.set(0, -0.1 * k * TERRAIN_PERIOD, k * TERRAIN_PERIOD);
     });
-    const y = snowHeight(s.z);
-    this.skier.position.set(s.x, y + 0.03, s.z);
+    // The camera rides the snow under the skier, smoothed, so a roller's crest
+    // lifts the view and hides what lies beyond it without a jolt.
+    const surface = surfaceHeight(s.course, s.x, s.z);
+    if (dt === 0 || Number.isNaN(this.groundY)) this.groundY = surface;
+    else this.groundY += (surface - this.groundY) * (1 - Math.exp(-4 * dt));
+    const y = this.groundY;
+    this.skier.position.set(s.x, surface + 0.03, s.z);
     this.skier.rotation.y = s.heading;
+    // On shaped snow the skier leans downhill with the local slope, exaggerated
+    // a little, and pitches up a rise and over a crest.
+    const lean = -Math.atan(crossSlope(s.course, s.x, s.z) * BANK_RATE) * BANK_LEAN;
+    const pitch = Math.atan(bankHeight(s.course, s.x, s.z + 0.5) - bankHeight(s.course, s.x, s.z - 0.5));
     this.skier.rotation.z =
-      s.crashTime > 0 ? Math.sin(s.crashTime * 7) * 1.7 : 0;
+      s.crashTime > 0 ? Math.sin(s.crashTime * 7) * 1.7 : lean;
     this.skier.rotation.x =
-      s.crashTime > 0 ? Math.sin(s.crashTime * 8) * 1.6 : 0.1;
+      s.crashTime > 0 ? Math.sin(s.crashTime * 8) * 1.6 : 0.1 - pitch;
     const portrait = this.camera.aspect < 0.8;
     if (mode === "menu" || mode === "how") {
       const menuPortrait = this.camera.aspect <= 1.25;
@@ -299,29 +315,10 @@ export class SkiScene {
     );
     this.character.animate(s, elapsed, mode);
     this.hazards.update(s);
-    this.updateGhost(s, mode, elapsed);
+    this.piste.update(s);
     this.environment.update(s.z);
     this.birthday.update(s, elapsed, mode);
     this.effects.update(s, mode === "paused" ? 0 : dt, mode === "playing");
     this.renderer.render(this.scene, this.camera);
-  }
-  private updateGhost(s: Run, mode: string, elapsed: number) {
-    const pose =
-      this.ghostTrace && (mode === "playing" || mode === "paused")
-        ? ghostPose(this.ghostTrace, s.time)
-        : null;
-    const root = this.ghost.root;
-    root.visible =
-      !!pose &&
-      !pose.finished &&
-      (Math.abs(pose.z - s.z) > 4 || Math.abs(pose.x - s.x) > 2);
-    if (!pose || !root.visible) return;
-    root.position.set(pose.x, snowHeight(pose.z) + 0.03, pose.z);
-    root.rotation.set(0.1, pose.heading, 0);
-    this.ghost.animate(
-      { crashTime: 0, heading: pose.heading },
-      elapsed,
-      mode,
-    );
   }
 }

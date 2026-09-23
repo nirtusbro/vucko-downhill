@@ -624,19 +624,6 @@ h1 span {
 .dialog .next-level {
   margin: 0 0 16px;
 }
-#pace {
-  font-style: normal;
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.02em;
-  font-variant-numeric: tabular-nums;
-}
-#pace.ahead {
-  color: #7fe3a8;
-}
-#pace.behind {
-  color: #ffb0a0;
-}
 .progress {
   flex: 1;
   max-width: 350px;

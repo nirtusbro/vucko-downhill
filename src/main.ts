@@ -11,24 +11,17 @@ import {
   COMBO_CAP,
   CRASH_PENALTY,
 } from "./physics";
-import { LEVEL_COUNT, courseFingerprint, getCourse } from "./levels";
+import { LAMP_LEVELS, LEVEL_COUNT, SLOPE_LEVELS, getCourse } from "./levels";
 import { SkiInput } from "./input";
 import { SkiScene } from "./scene";
 import { SkiAudio } from "./audio";
-import { readValue, writeValue } from "./storage";
+import { forgetValues, readValue, writeValue } from "./storage";
 import { PRESENT_POINTS } from "./presents";
 import { LevelProgress } from "./progress";
 import { LevelMap } from "./collection-view";
 import { setupInstall, setupPwa } from "./pwa";
 import { LAMP_CATALOG } from "./lamp-catalog";
 import { lampArt } from "./lamp-art";
-import {
-  loadGhost,
-  paceDelta,
-  recordSample,
-  saveGhost,
-  type Trace,
-} from "./ghost";
 
 /** Past this many lives the HUD draws one heart with a count instead of a row. */
 const MAX_HEART_ICONS = 6;
@@ -38,10 +31,15 @@ const el = <T extends HTMLElement = HTMLElement>(id: string) =>
 /** Stands in for a lamp on the bonus levels beyond the summit. */
 const PEAK_ART =
   '<svg xmlns="http://www.w3.org/2000/svg" class="lamp-art" viewBox="0 0 80 88" aria-hidden="true"><path d="M4 78 30 22l13 24 9-12 24 44z" fill="#8cb3ce"/><path d="M30 22l9 17-9-4-8 6z" fill="#f0f6fd"/><path d="M52 34l7 13-7-3-5 5z" fill="#f0f6fd"/><path d="M4 78h72" stroke="#c9d8e6" stroke-width="3"/></svg>';
+/** Stands in for a lamp on the north face: a peak with one banked, shaded face. */
+const NORTH_ART =
+  '<svg xmlns="http://www.w3.org/2000/svg" class="lamp-art" viewBox="0 0 80 88" aria-hidden="true"><path d="M4 78 30 22l13 24 9-12 24 44z" fill="#6f9bbd"/><path d="M30 22l9 17-9-4-8 6z" fill="#f0f6fd"/><path d="M52 34l7 13-7-3-5 5z" fill="#f0f6fd"/><path d="M12 70 46 38l22 32z" fill="#b4cde3"/><path d="M12 70 46 38l-4 32z" fill="#f0f6fd"/><path d="M4 78h72" stroke="#c9d8e6" stroke-width="3"/></svg>';
 const canvas = el<HTMLCanvasElement>("game");
 const input = new SkiInput(canvas);
 const progress = new LevelProgress();
 const levelMap = new LevelMap(progress);
+// The pace ghost is gone; any ghosts saved by earlier versions go with it.
+forgetValues("ghost:");
 let level = progress.unlocked;
 let collectionReturn = "menu";
 let run = createRun(level, undefined, progress.lamps);
@@ -58,10 +56,7 @@ let newBest = false;
 let newlyEarned = false;
 let discoveries = 0;
 let elapsed = 0;
-let trace: Trace = [];
-let ghost: Trace | null = loadGhost(level, courseFingerprint(getCourse(level)));
-const paceEl = el("pace"),
-  goalEl = el("goal"),
+const goalEl = el("goal"),
   livesEl = el("lives"),
   lifeProgressEl = el("life-progress");
 const timeEl = el("time"),
@@ -80,28 +75,33 @@ const formatTime = (time: number) => {
 function refreshHome() {
   const course = getCourse(level),
     bonus = course.lampId < 0,
+    north = level >= SLOPE_LEVELS,
     lamp = bonus ? null : LAMP_CATALOG[course.lampId],
     earned = bonus ? progress.passed(level) : progress.lamps[course.lampId];
   el("home-level").textContent = `Level ${level + 1}`;
   el("home-level-of").textContent = `· ${course.name}`;
   el("home-hint").textContent = course.hint;
   const art = el("home-lamp-art");
-  art.innerHTML = lamp ? lampArt(lamp) : PEAK_ART;
+  art.innerHTML = lamp ? lampArt(lamp) : north ? NORTH_ART : PEAK_ART;
   art.className = bonus ? "home-lamp bonus" : earned ? "home-lamp owned" : "home-lamp undiscovered";
-  el("home-lamp-name").textContent = bonus
+  el("home-lamp-name").textContent = north
     ? earned
-      ? "Cleared. No lamps, no presents, just rock."
-      : "Bonus level: no lamps, no presents, just rock."
-    : earned
-      ? lamp!.name
-      : "Clear every gate and reach the goal to earn this lamp";
+      ? "Cleared. Banked snow, no lamps, no presents."
+      : "North face: banked snow drags you sideways. No lamps, no presents."
+    : bonus
+      ? earned
+        ? "Cleared. No lamps, no presents, just rock."
+        : "Bonus level: no lamps, no presents, just rock."
+      : earned
+        ? lamp!.name
+        : "Clear every gate and reach the goal to earn this lamp";
   el("home-pickups").innerHTML = course.pickupLampIds
     .map(
       (id) =>
         `<span class="shelf-lamp ${progress.lamps[id] ? "owned" : "undiscovered"}" title="${progress.lamps[id] ? LAMP_CATALOG[id].name : "Still on the slope"}">${lampArt(LAMP_CATALOG[id])}</span>`,
     )
     .join("");
-  el("home-lamp-rarity").textContent = lamp ? lamp.rarity : "Beyond the summit";
+  el("home-lamp-rarity").textContent = lamp ? lamp.rarity : north ? "The north face" : "Beyond the summit";
   el("home-lamp-rarity").parentElement!.dataset.rarity = lamp ? lamp.rarity : "Legendary";
   el("home-gates").textContent = String(course.gates.length);
   el("home-goal").textContent = course.goal.toLocaleString();
@@ -121,7 +121,6 @@ function refreshHome() {
 function selectLevel(next: number) {
   level = Math.max(0, Math.min(progress.unlocked, next));
   run = createRun(level, undefined, progress.lamps);
-  ghost = loadGhost(level, courseFingerprint(run.course));
   refreshHome();
 }
 el("level-prev").onclick = () => selectLevel(level - 1);
@@ -162,15 +161,6 @@ function changeMode(next: string) {
 }
 function updateHud() {
   timeEl.textContent = formatTime(run.time);
-  if (ghost) {
-    const delta = paceDelta(ghost, run);
-    const even = Math.abs(delta) < 0.05;
-    paceEl.textContent = even
-      ? "0.0s"
-      : `${delta > 0 ? "+" : "−"}${Math.abs(delta).toFixed(1)}s`;
-    paceEl.className = even ? "even" : delta > 0 ? "behind" : "ahead";
-  }
-  paceEl.hidden = !ghost;
   scoreEl.textContent = run.score.toLocaleString();
   const endless = run.course.endless === true;
   livesEl.hidden = !endless;
@@ -222,9 +212,6 @@ function start(endless = false) {
   feedback.className = "";
   feedback.textContent = "";
   combo.textContent = "";
-  trace = [];
-  ghost = endless ? null : loadGhost(level, courseFingerprint(run.course));
-  scene.ghostTrace = ghost;
   scene.reset();
   changeMode("playing");
   scene.update(run, 0, mode, elapsed);
@@ -345,7 +332,6 @@ function event(name: string) {
     levelMap.refreshHome();
     newBest = result.newBest;
     newlyEarned = result.newlyEarned;
-    if (newBest) saveGhost(level, trace, courseFingerprint(run.course));
     finishDelay = 1.8;
     changeMode("celebrating");
     tutorialEl.hidden = true;
@@ -409,14 +395,17 @@ function finish() {
   }
   const course = run.course,
     bonus = course.lampId < 0,
+    north = level >= SLOPE_LEVELS,
     lamp = bonus ? null : LAMP_CATALOG[course.lampId];
   el("finish-kicker").textContent = run.passed
     ? `Level ${level + 1} ${bonus ? "cleared!" : "complete!"}`
     : `Level ${level + 1} · not quite`;
   el("result-title").textContent = run.passed
-    ? bonus
-      ? "Beyond the summit."
-      : newlyEarned
+    ? north
+      ? "The north face, held."
+      : bonus
+        ? "Beyond the summit."
+        : newlyEarned
         ? "A new lamp for Ljubica."
         : "Beautiful run."
     : "The mountain will wait.";
@@ -456,10 +445,14 @@ function finish() {
     : bonus
       ? "No lamps on this slope"
       : "Every slope lamp here is already yours";
-  el("result-found").textContent = bonus
+  el("result-found").textContent = north
     ? run.passed
-      ? `Bonus level cleared · ${progress.clearedCount - 20 > 0 ? progress.clearedCount - 20 : 1} / 10 beyond the summit`
-      : "Bonus level · no lamps, no presents, just rock"
+      ? `North face cleared · ${progress.clearedBetween(SLOPE_LEVELS, LEVEL_COUNT)} / ${LEVEL_COUNT - SLOPE_LEVELS} on the north face`
+      : "North face · banked snow, no lamps, no presents"
+    : bonus
+      ? run.passed
+        ? `Bonus level cleared · ${progress.clearedBetween(LAMP_LEVELS, SLOPE_LEVELS)} / ${SLOPE_LEVELS - LAMP_LEVELS} beyond the summit`
+        : "Bonus level · no lamps, no presents, just rock"
     : run.passed
     ? `${discoveries} new lamp${discoveries === 1 ? "" : "s"} kept · ${progress.lampsFound(level)} / 5 for this level · ${progress.earnedCount} / 100 in all`
     : run.lamps
@@ -483,7 +476,7 @@ function finish() {
       nextLamp = next.lampId >= 0 ? LAMP_CATALOG[next.lampId] : null;
     el("result-next-title").textContent = `Next: Level ${level + 2} · ${next.name}`;
     el("result-next-hint").textContent = next.hint;
-    el("result-next-art").innerHTML = nextLamp ? lampArt(nextLamp) : PEAK_ART;
+    el("result-next-art").innerHTML = nextLamp ? lampArt(nextLamp) : level + 1 >= SLOPE_LEVELS ? NORTH_ART : PEAK_ART;
     el("result-next-art").className = `result-next-art ${nextLamp && progress.lamps[next.lampId] ? "owned" : "undiscovered"}`;
     el("result-next-detail").textContent =
       `${next.gates.length} gates · goal ${next.goal.toLocaleString()} · ${nextLamp ? `${nextLamp.rarity} lamp` : "bonus level, no lamps"}`;
@@ -547,7 +540,6 @@ try {
       accumulator += dt;
       while (accumulator >= 1 / 120 && mode === "playing") {
         stepRun(run, -input.update(1 / 120), 1 / 120);
-        recordSample(trace, run);
         if (run.lampEvent >= 0) event("lamp");
         if (run.presents.event) event("present");
         if (run.lifeEvent) event("life");

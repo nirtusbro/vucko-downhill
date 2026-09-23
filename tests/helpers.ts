@@ -1,15 +1,25 @@
-import { clamp, stepRun, type Run } from "../src/physics";
+import { clamp, driftAhead, stepRun, type Run } from "../src/physics";
+import { ROCK_GATE_HALF } from "../src/levels";
 
 /**
  * A relaxed steering controller using only normal input: aim at the next gate
- * or pickup with a proportional turn and a little heading damping, and steer
- * around any rock or tree that sits on that aim line, the way a player would.
+ * or pickup with a proportional turn and a little heading damping, steer
+ * around any rock or tree that sits on that aim line, and aim upslope of the
+ * target by the drift a bank on the way will add, the way a player would.
  */
 export function drive(run: Run, gain = 0.18, damping = 0.8) {
   const c = run.course;
+  // A rock gate (two rocks level with each other, a gap apart) is threaded
+  // through its middle, so the gap is a waypoint on the way to the flags.
+  const gaps = c.hazards.flatMap((a) =>
+    c.hazards
+      .filter((b) => b.z === a.z && Math.abs(b.x - a.x - 2 * ROCK_GATE_HALF) < 0.2)
+      .map((b) => ({ x: (a.x + b.x) / 2, z: a.z, gate: false })),
+  );
   const targets = [
     ...c.gates.map((g) => ({ x: g.x, z: g.z, gate: true })),
     ...c.lampSpots.map((s) => ({ x: s.x, z: s.z, gate: false })),
+    ...gaps,
   ].sort((a, b) => a.z - b.z);
   let next = 0,
     crashes = 0,
@@ -17,13 +27,16 @@ export function drive(run: Run, gain = 0.18, damping = 0.8) {
   for (let tick = 0; tick < 120 * 180 && !run.finished; tick++) {
     while (next < targets.length && run.z >= targets[next].z) next++;
     const target = targets[next] ?? { x: 0, z: c.finishZ, gate: true };
-    let aimX = target.x;
+    // The skid under way and the banks between here and the target will carry
+    // the skier sideways; a skier reads that off the snow ahead and aims upslope.
+    const driftTo = (z: number) => driftAhead(c, run.x, run.z, run.slip, run.speed, z);
+    let aimX = target.x - driftTo(target.z);
     // Swerve around the nearest hazard that the current aim line would hit,
     // passing it on whichever side keeps closer to the target.
     // Where the current line will be when it reaches a hazard: converging on
-    // the aim point over roughly 25 metres.
+    // the aim point over roughly 25 metres, and carried by any bank on the way.
     const pathX = (z: number) =>
-      run.x + (aimX - run.x) * clamp((z - run.z) / 25, 0, 1);
+      run.x + (aimX - run.x) * clamp((z - run.z) / 25, 0, 1) + driftTo(z);
     const blocker = c.hazards
       .filter(
         (h) =>

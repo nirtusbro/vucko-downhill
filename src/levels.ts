@@ -1,6 +1,8 @@
-export const LEVEL_COUNT = 30;
+export const LEVEL_COUNT = 40;
 /** The first twenty levels carry the hundred lamps; the rest are bonus runs with none. */
 export const LAMP_LEVELS = 20;
+/** From this level on, the north face: banked snow that drags the skier sideways. */
+export const SLOPE_LEVELS = 30;
 export const MAX_GATES = 30;
 /** Lamps tied to each level: four collectible on the slope, one earned at the finish. */
 export const PICKUPS_PER_LEVEL = 4;
@@ -50,8 +52,64 @@ export interface Hazard {
   radius: number;
   kind: "rock" | "tree";
 }
+/**
+ * A band of banked snow between `from` and `to`, eased in and out over
+ * SLOPE_EASE metres at each end. The shapes banked snow comes in: `camber` tilts the whole piste one way;
+ * `dish` curves it up into walls either side that pull toward the middle;
+ * `crown` raises a ridge down the middle that tips the skier off to either
+ * side; `roller` is a knoll across the piste that hides what lies behind it;
+ * `step` splits the piste into two shelves with a bank between them.
+ */
+export type SlopeKind = "camber" | "dish" | "crown" | "roller" | "step";
+export const SLOPE_KINDS: SlopeKind[] = ["camber", "dish", "crown", "roller", "step"];
+export interface Slope {
+  from: number;
+  to: number;
+  /** For a camber or step, the side the snow falls toward; 1 for the other kinds. */
+  dir: 1 | -1;
+  kind: SlopeKind;
+  stretch: number;
+}
+/**
+ * Banked snow drives a sideslip: the skis skid down the tilt at this
+ * acceleration on a full bank, while edge grip bleeds the slip away with
+ * this time constant, so the slip tends to ACCEL × GRIP (7.2 m/s) and keeps
+ * carrying the skier for a moment after the bank ends.
+ */
+export const SLIP_ACCEL = 16;
+export const SLIP_GRIP = 0.45;
+/** Skidding sideways scrubs forward speed: this much per second for every metre a second of slip. */
+export const SLIP_DRAG = 0.25;
+export const GRAVITY = 9.81;
+/** Metres over which banked snow eases in and out at each end of a slope: long enough that no entry is steeper than a roller's face. */
+export const SLOPE_EASE = 8;
+/** Slopes keep this far from the gate lines either side of their stretch. */
+export const SLOPE_MARGIN = 12;
+/** Slopes end this far before any rock in their stretch. */
+export const SLOPE_ROCK_GAP = 10;
+/** How far a camber rises per metre across: the piste tilts about its centre line. */
+export const BANK_RATE = 0.16;
+/** Where banked snow meets the fences: it returns to flat over the 4 m before this. */
+export const BANK_HALF_WIDTH = 21;
+/**
+ * A dish's walls and a crown's ridge stand this high, curving out to
+ * DISH_REACH either side of centre and level beyond: about a camber's rise,
+ * so no shape of snow is a wall.
+ */
+export const DISH_HEIGHT = 1.6;
+export const CROWN_HEIGHT = 1.4;
+export const DISH_REACH = 14;
+/** A roller's crest stands this high above the piste. */
+export const ROLLER_HEIGHT = 2.4;
+/** A step drops this far from its high shelf to its low one, across a bank this wide either side of centre. */
+export const STEP_HEIGHT = 1.6;
+export const STEP_HALF = 4;
+/** The steepest cross-slope the skis feel, as a multiple of a full camber. */
+export const CROSS_SLOPE_MAX = 1.25;
 /** A gate as authored: sideways position, gap from the gate before, width scale. */
 export type GateSpec = [x: number, gap: number, widthScale?: number];
+/** A slope as authored: the stretch it lies in, the way it falls, and its shape (a camber if unsaid). */
+export type SlopeSpec = [stretch: number, dir: 1 | -1, kind?: SlopeKind];
 export interface LevelDesign {
   name: string;
   /** What this level asks of the skier, shown on the home card. */
@@ -81,6 +139,8 @@ export interface LevelDesign {
   rockGates: number[];
   /** Stretches that end in a weave: three rocks alternating sides on the way in. */
   weaves: number[];
+  /** Stretches holding a band of banked snow, and which way each band pushes. */
+  slopes: SlopeSpec[];
   /** Goal as a share of the maximum gate score. */
   goalFraction: number;
   /** Par time as a multiple of the course length at cruising speed. */
@@ -106,6 +166,8 @@ export interface Course {
   stretches: Stretch[];
   lampSpots: LampSpot[];
   hazards: Hazard[];
+  /** Bands of banked snow, sorted by z. */
+  slopes: Slope[];
   speed: number;
   turnAngle: number;
   pickupRadius: number;
@@ -141,6 +203,7 @@ const base: Omit<LevelDesign, "name" | "hint" | "gates" | "lamps"> = {
   presents: true,
   rockGates: [],
   weaves: [],
+  slopes: [],
   goalFraction: 0.6,
   parFactor: 1.3,
   timeBonusRate: 50,
@@ -152,7 +215,7 @@ const design = (
 ): LevelDesign => ({ ...base, ...spec, name, hint });
 
 /**
- * Twenty hand-placed levels. Each gate is [x, gap before it, width scale];
+ * Forty hand-placed levels. Each gate is [x, gap before it, width scale];
  * the slope runs from x = −9.5 to 9.5 and every gap is at least 30 metres.
  * Stretch n is the run from gate n to gate n+1 (the last one leads to the finish).
  * Rule: the openings of consecutive gates never overlap sideways, so no two
@@ -406,6 +469,144 @@ export const LEVEL_DESIGNS: LevelDesign[] = [
     weaves: [9, 15, 22],
     rockGates: [2, 10, 16, 23, 28],
   }),
+  // The north face: ten levels of shaped snow, planned as a course. Each of
+  // the first five teaches one shape on its own, in the order a skier can
+  // learn them; the next three combine shapes with what came before; the
+  // last two mix everything with rock. Still no lamps and no presents. A band
+  // runs from 12 m past one gate to 12 m before the next (10 m before the
+  // rocks of a rock gate), so flags always stand on flat snow.
+  //
+  // 31 First bank: cambers only. Off-camber bands come first (the push fights
+  // the traverse, so aim upslope early), then with-the-grain bands (the push
+  // carries you past the flags, so hold back). Long bands, few rocks.
+  design("First bank", "Banked snow drags you sideways. Aim upslope, into the tilt, and hold it through the band.", {
+    baseWidth: 5.2, speed: 38.5, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.9, parFactor: 1.2,
+    gates: [[-4, 60], [6, 52], [-6, 52], [6, 44], [-7, 52], [7, 52], [-4, 30], [4, 30], [-7, 52], [7, 52], [-6, 44], [6, 52], [-6, 52], [6, 44], [-8, 52], [8, 52], [-5, 44], [5, 44], [-7, 52], [7, 52]],
+    lamps: [],
+    slopes: [[0, -1], [1, 1], [3, 1], [4, -1], [7, 1], [8, -1], [10, 1], [11, -1], [13, -1], [14, 1], [17, 1], [18, -1], [19, 1]],
+    weaves: [15],
+    rockGates: [9, 12],
+  }),
+  // 32 Halfpipe: the dish is the signature, never the whole level. Dishes into
+  // rock gates high on the walls, a staircase of line rocks back down a wall,
+  // a camber and a crown for contrast, flicks and weaves between.
+  design("Halfpipe", "Walls that pull you to the middle, rock gates high up them, a staircase back down. Climb on purpose.", {
+    baseWidth: 5.1, speed: 39, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.92, parFactor: 1.2,
+    gates: [[-6, 60], [7, 50], [-8, 50], [8, 44], [-3, 30], [3, 30], [-9, 50], [9.5, 50], [-9.5, 50], [5, 44], [1, 40], [-3, 40], [-7, 40], [8, 50], [-8, 50], [8, 50], [-4, 30], [4, 30], [-9, 50], [9, 50], [-9, 50], [6, 44], [-6, 44], [6, 44]],
+    lamps: [],
+    lineRocks: [9, 10, 11],
+    slopes: [[0, 1, "dish"], [1, 1, "dish"], [5, -1], [6, 1, "dish"], [7, 1, "dish"], [12, 1, "crown"], [13, 1, "dish"], [14, 1, "dish"], [17, 1, "dish"], [18, 1], [19, 1, "dish"], [23, 1, "dish"]],
+    weaves: [8, 22],
+    rockGates: [2, 6, 7, 17, 19, 20],
+  }),
+  // 33 The ridge: the crown is the signature. Flank pairs where staying out
+  // pays, crossings into rock gates, a blind crossing over a roller, cambers
+  // that fight the crossing, a long 60-metre crown, and flicks between.
+  design("The ridge", "A crown down the middle tips you off it. Hold a flank, cross it into rock gates, cross it blind.", {
+    baseWidth: 5, speed: 39.5, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.92, parFactor: 1.2,
+    gates: [[-4, 60], [-9.5, 50], [-4, 50], [4.5, 44], [9.5, 50], [-9.5, 50], [-3, 30], [3, 30], [-3, 30], [-8.5, 50], [8, 50], [-8, 50], [-3, 44], [-8, 50], [8, 60], [3, 50], [8.5, 50], [-8.5, 50], [-3, 30], [3.5, 30], [-9, 50], [9, 50], [-9, 50], [-4, 44], [5, 44], [-6, 44]],
+    lamps: [],
+    slopes: [[0, 1, "crown"], [1, 1, "crown"], [3, 1, "crown"], [4, 1, "crown"], [8, 1, "crown"], [9, 1, "roller"], [10, 1, "crown"], [12, -1], [13, 1, "crown"], [14, 1, "crown"], [15, 1], [16, 1, "crown"], [19, 1], [20, 1, "crown"], [21, 1, "roller"], [25, 1, "crown"]],
+    weaves: [11, 23],
+    rockGates: [2, 4, 10, 16, 22, 24],
+  }),
+  // 34 Terraces: the step is the signature. Rides and climbs into rock gates,
+  // a rock-strewn staircase, a camber and a dish and a roller thrown in so
+  // no two banks in a row ask the same thing.
+  design("Terraces", "Two shelves and a bank between. Ride it down into rock gates, climb it against the push, and never twice the same way.", {
+    baseWidth: 5, speed: 40, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.92, parFactor: 1.2,
+    gates: [[-6, 60], [7, 48], [-7, 48], [7, 44], [2, 30], [-4, 30], [8, 50], [-8, 50], [-4, 40], [0, 40], [4, 40], [8, 40], [-7, 48], [7, 48], [-7, 48], [-2, 30], [4, 30], [-8, 48], [8, 50], [-8, 50], [-3, 44], [7, 48], [-7, 48], [7, 48], [-9, 44], [9, 44]],
+    lamps: [],
+    lineRocks: [7, 8, 9, 10],
+    slopes: [[0, 1, "step"], [1, 1, "step"], [5, -1, "step"], [6, -1, "step"], [11, -1, "step"], [12, -1], [13, 1, "step"], [16, 1, "dish"], [17, 1, "step"], [18, 1, "step"], [20, 1, "roller"], [21, -1, "step"], [22, -1, "step"], [25, 1, "step"]],
+    weaves: [19, 24],
+    rockGates: [2, 5, 6, 17, 18, 23],
+  }),
+  // 35 Blind rollers: the roller is the signature. Knolls before hairpins,
+  // knolls before rock gates you cannot see, flicks straight after a crest,
+  // a staircase, a crown and two cambers so the crests never come alone.
+  design("Blind rollers", "Crests hide the flags and the rocks behind them. Set your line before the top, every time.", {
+    baseWidth: 4.9, speed: 40.5, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.94, parFactor: 1.2,
+    gates: [[-4, 60], [6, 50], [-7, 50], [8, 44], [3, 30], [-3, 30], [-9, 50], [9.5, 50], [-9.5, 50], [-5, 40], [-1, 40], [4, 40], [8, 40], [-8, 50], [-2, 30], [5, 30], [-8, 50], [8, 50], [-9.5, 50], [9.5, 44], [4, 44], [-6, 50], [-1, 30], [5, 30], [-8, 50], [8, 50]],
+    lamps: [],
+    lineRocks: [8, 9, 10, 11],
+    slopes: [[0, 1, "roller"], [1, 1, "roller"], [5, 1, "roller"], [6, 1, "roller"], [7, -1], [12, 1, "roller"], [15, 1, "crown"], [16, 1, "roller"], [17, 1, "roller"], [20, 1, "roller"], [23, 1], [24, 1, "roller"], [25, 1, "roller"]],
+    weaves: [18],
+    rockGates: [2, 6, 17, 19],
+  }),
+  // 36 Long traverse: camber mastery. Sixty-metre stretches where the skid
+  // reaches full speed and carries past the band, a dish and a roller and a
+  // crown on the same long stretches for contrast, a staircase, and four
+  // banks in a row that run straight into rock gates.
+  design("Long traverse", "Sixty-metre stretches: the skid builds to full speed and carries past the bank. Then four banks into rock gates.", {
+    baseWidth: 4.9, speed: 41, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.94, parFactor: 1.2,
+    gates: [[-3, 60], [7, 60], [-8, 60], [8, 60], [-8, 60], [4, 44], [-1, 30], [5, 30], [-8, 60], [8, 60], [-9.5, 60], [-5, 40], [-1, 40], [4, 40], [8.5, 40], [-6, 56], [6, 56], [-7, 56], [7, 56], [-3, 44], [-9, 60], [9, 60]],
+    lamps: [],
+    lineRocks: [10, 11, 12, 13],
+    slopes: [[0, -1], [1, 1], [2, 1, "dish"], [3, -1], [7, 1], [8, 1, "roller"], [9, -1], [14, -1], [15, 1, "crown"], [16, -1], [17, 1], [19, -1], [20, 1], [21, -1]],
+    weaves: [18],
+    rockGates: [4, 14, 15, 16, 17],
+  }),
+  // 37 Switchbacks: crown into dish into crown, so one band throws you out to
+  // a flank and the next pulls you in while the flags sit up the wall; rock
+  // gates at the foot of both, a step and a roller and a camber for contrast,
+  // a staircase and flicks between.
+  design("Switchbacks", "A crown throws you out, the dish after it pulls you in, and the flags sit up the wall. Read the snow two bands ahead.", {
+    baseWidth: 4.8, speed: 41.5, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.95, parFactor: 1.2,
+    gates: [[-4, 60], [7, 50], [-8, 50], [8, 50], [3, 30], [-3, 30], [3, 30], [-8, 50], [8, 50], [-9.5, 50], [-5, 40], [-1, 40], [4, 40], [9, 50], [-8, 50], [8, 50], [-8, 50], [-3, 44], [7, 50], [-7, 50], [-2, 30], [4, 30], [-8, 50], [8, 50], [-8, 50], [8, 44]],
+    lamps: [],
+    lineRocks: [9, 10, 11],
+    slopes: [[0, 1, "crown"], [1, 1, "dish"], [2, 1, "crown"], [6, 1, "dish"], [7, 1, "crown"], [8, 1, "dish"], [12, -1, "step"], [13, 1, "crown"], [14, 1, "dish"], [15, 1, "roller"], [17, 1, "crown"], [18, 1, "dish"], [21, 1], [22, 1, "crown"], [23, 1, "dish"], [25, 1, "crown"]],
+    weaves: [16],
+    rockGates: [2, 8, 17, 18, 24],
+  }),
+  // 38 Cornice: rollers into flicks you could not see, steps into rock gates
+  // both ways, a dish into a rock gate, a crown, a camber, a staircase and
+  // narrowing flicks, in no repeating order.
+  design("Cornice", "A crest, then a flick you could not see. Steps into rock gates, both ways. Nothing here repeats.", {
+    baseWidth: 4.8, speed: 42, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.95, parFactor: 1.2,
+    gates: [[3, 60], [-6, 50], [-1, 30], [5, 30], [-7, 50], [6, 50], [-8, 50], [-3, 30], [3, 30, 0.95], [-3, 30, 0.9], [-8.5, 50], [8, 50], [4, 40], [0, 40], [-4, 40], [-8, 40], [8, 50], [-8, 50], [-3, 30], [3, 30, 0.95], [8, 50], [-8, 50], [-3, 44], [7, 50], [-7, 50], [-2, 30], [4, 30, 0.95], [-8, 44]],
+    lamps: [],
+    lineRocks: [11, 12, 13, 14],
+    slopes: [[0, 1, "roller"], [3, -1, "step"], [4, -1, "step"], [5, -1], [9, 1, "roller"], [10, 1, "dish"], [15, 1, "step"], [16, 1, "step"], [19, 1, "roller"], [20, 1, "crown"], [22, -1, "step"], [23, 1, "roller"], [27, 1, "roller"]],
+    weaves: [21],
+    rockGates: [4, 10, 16, 22, 26],
+  }),
+  // 39 Avalanche path: every shape paired with the rock feature that hurts it
+  // most. Staircases with line rocks; a camber with the grain into a rock
+  // gate; a dish before a staircase up its wall; a roller before a rock gate
+  // you cannot see; a step whose high shelf holds the flags.
+  design("Avalanche path", "Staircases, weaves and rock gates, each behind the shape of snow that makes it hardest.", {
+    baseWidth: 4.7, speed: 42.5, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.96, parFactor: 1.2,
+    gates: [[-9, 60], [-5, 40], [-1, 40], [3, 40], [7, 40], [-6, 50], [6, 50], [-7, 50], [3, 30], [-3, 30], [3, 30], [-8, 50], [8, 50], [-9.5, 50], [5, 40], [1, 40], [-3, 40], [-7, 40], [8, 50], [-8, 50], [7, 50], [-3, 30], [3, 30], [-3, 30], [9, 50], [-9, 50], [6, 44], [-6, 44]],
+    lamps: [],
+    lineRocks: [0, 1, 2, 3, 14, 15, 16],
+    slopes: [[4, -1], [5, 1, "dish"], [6, 1, "crown"], [10, 1, "roller"], [11, -1, "step"], [12, 1], [17, 1, "dish"], [18, 1, "crown"], [19, 1, "step"], [23, 1, "roller"], [24, -1], [27, 1, "dish"]],
+    weaves: [25],
+    rockGates: [4, 10, 11, 24, 26],
+  }),
+  // 40 North face: the whole course in order, tightened. Cambers, dishes,
+  // crowns, a rock-strewn staircase, steps, rollers, narrowing flicks, and a
+  // finale of one band of each shape, most of them into rock gates.
+  design("North face", "Everything the north face taught, in order and tighter. Thirty gates, five shapes of snow, nothing to spare.", {
+    baseWidth: 4.7, speed: 43, turnAngle: 0.96, pickupRadius: 1.8, detour: 5.6, lampFraction: 0.45,
+    presents: false, fillRocks: true, goalFraction: 0.97, parFactor: 1.2,
+    gates: [[3, 60], [-6, 42], [6, 42], [-7, 50], [7, 44], [-8, 42], [8, 42], [-9.5, 50], [-3, 30], [3, 30, 0.95], [-3, 30, 0.92], [-8, 42], [8, 42], [-8, 50], [-4, 38], [0, 38], [4, 38], [8, 38], [-7, 42], [7, 42], [-6, 50], [7, 42], [-9.5, 42], [9.5, 50], [-3, 30], [3, 30, 0.95], [-3, 30, 0.92], [8, 40], [-8, 40], [8, 50]],
+    lamps: [],
+    lineRocks: [13, 14, 15, 16],
+    slopes: [[0, 1], [1, 1], [2, -1], [4, 1, "dish"], [5, 1, "dish"], [6, 1, "dish"], [10, 1, "crown"], [11, 1, "crown"], [12, 1, "crown"], [17, -1, "step"], [18, -1, "step"], [19, 1, "step"], [20, 1, "roller"], [21, 1, "roller"], [22, 1, "roller"], [26, 1], [27, 1, "dish"], [28, 1, "crown"], [29, -1, "step"]],
+    weaves: [3],
+    rockGates: [2, 6, 12, 19, 22, 23, 28],
+  }),
 ];
 export const levelSettings = (level: number) =>
   LEVEL_DESIGNS[Math.max(0, Math.min(LEVEL_COUNT - 1, level))];
@@ -507,12 +708,32 @@ export function buildCourse(level: number): Course {
     rock((gate.x + next.x) / 2, (gate.z + next.z) / 2, FORK_ROCK_RADIUS);
   }
   if (S.fillRocks) {
-    const used = new Set([...S.lamps, ...S.weaves, ...S.rockGates, ...S.wideRocks, ...S.lineRocks]);
+    const used = new Set([
+      ...S.lamps,
+      ...S.weaves,
+      ...S.rockGates,
+      ...S.wideRocks,
+      ...S.lineRocks,
+      ...S.slopes.map(([index]) => index),
+    ]);
     for (const s of stretches)
       if (!used.has(s.index) && s.index < stretches.length - 1 && s.length >= 30)
         rock(s.lineX + s.side * S.detour, s.lampZ, WIDE_ROCK_RADIUS);
   }
   hazards.sort((a, b) => a.z - b.z);
+  // A slope band fills its stretch between the gate margins, stopping short of
+  // any rock in the stretch so the drift never carries a skier into one unseen.
+  const slopes: Slope[] = S.slopes.map(([index, dir, kind = "camber"]) => {
+    const gate = gates[index],
+      next = gates[index + 1] ?? { x: 0, z: finishZ };
+    const from = gate.z + SLOPE_MARGIN;
+    let to = next.z - SLOPE_MARGIN;
+    for (const h of hazards)
+      if (h.z > gate.z && h.z < next.z) to = Math.min(to, h.z - SLOPE_ROCK_GAP);
+    // Only a camber or a step has a side to fall toward.
+    return { from, to, dir: kind === "camber" || kind === "step" ? dir : 1, kind, stretch: index };
+  });
+  slopes.sort((a, b) => a.from - b.from);
   const maxGateScore = gates.reduce((sum, _, i) => sum + 100 * Math.min(8, i + 1), 0);
   const lamps = levelLamps(level);
   const speed = Math.round(S.speed * SPEED_SCALE * 10) / 10;
@@ -531,6 +752,7 @@ export function buildCourse(level: number): Course {
     stretches,
     lampSpots,
     hazards,
+    slopes,
     speed,
     turnAngle: S.turnAngle,
     pickupRadius: S.pickupRadius,
@@ -540,9 +762,27 @@ export function buildCourse(level: number): Course {
     goal,
   };
 }
-/** A short signature of a level's layout; a ghost recorded on a different layout is discarded. */
-export const courseFingerprint = (course: Course) =>
-  `${course.gates.map((g) => `${g.x}:${g.z}:${Math.round(g.width * 10)}`).join(",")}|${course.finishZ}|${course.hazards.length}`;
+/**
+ * How far the snow is banked at a distance down the course: the sum of every
+ * slope band's push there, eased in and out, so −1 to 1 with the sign giving
+ * the direction of the drift. Zero on flat snow, which is everywhere else.
+ */
+export function slopeTilt(course: Pick<Course, "slopes">, z: number, ease = SLOPE_EASE) {
+  let tilt = 0;
+  for (const slope of course.slopes) {
+    if (z <= slope.from || z >= slope.to) continue;
+    const edge = Math.min(z - slope.from, slope.to - z);
+    const t = Math.min(1, edge / ease);
+    tilt += slope.dir * t * t * (3 - 2 * t);
+  }
+  return Math.max(-1, Math.min(1, tilt));
+}
+/** How far into a band a point is, eased at both ends: 0 outside, 1 in the middle. */
+export function slopeWindow(slope: Pick<Slope, "from" | "to">, z: number) {
+  if (z <= slope.from || z >= slope.to) return 0;
+  const t = Math.min(1, Math.min(z - slope.from, slope.to - z) / SLOPE_EASE);
+  return t * t * (3 - 2 * t);
+}
 /** The most rocks and trees any level places, so renderers can pool enough models. */
 export function hazardPoolSizes() {
   let rocks = 0,

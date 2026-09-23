@@ -58,6 +58,12 @@ export class LevelProgress {
   get clearedCount() {
     return this.cleared.filter(Boolean).length;
   }
+  /** How many levels from `from` up to (not including) `to` have been passed. */
+  clearedBetween(from: number, to: number) {
+    let count = 0;
+    for (let level = from; level < to; level++) if (this.passed(level)) count++;
+    return count;
+  }
   isUnlocked(level: number) {
     return validLevel(level) && level <= this.unlocked;
   }

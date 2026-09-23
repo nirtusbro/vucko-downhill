@@ -1,0 +1,15 @@
+North-face design report (written by tests/design.test.ts on every test run)
+
+run = longest run of the same challenge / of the same shape of snow; demand = mean/max share of the skier's sideways reach a stretch asks;
+steepest = the sharpest rise of the snow along the run on the skier's lines (metres per metre); margin = the test controller's thinnest gate crossing in metres.
+
+31 First bank      gates 20 len 1024 rocks 11 bands 13 shapes camber                         kinds 4 run 3/13 flicks 2 hairpins 5 long 12 gaps 3 demand 0.24/0.40 steepest 0.28 margin 1.11 crashes 0 pass 25.1s
+32 Halfpipe        gates 24 len 1130 rocks 26 bands 12 shapes dish/camber/crown              kinds 7 run 3/3 flicks 4 hairpins 11 long 11 gaps 4 demand 0.27/0.44 steepest 0.28 margin 1.09 crashes 0 pass 27.3s
+33 The ridge       gates 26 len 1250 rocks 23 bands 16 shapes crown/roller/camber            kinds 6 run 3/5 flicks 5 hairpins 7 long 15 gaps 4 demand 0.20/0.34 steepest 0.29 margin 0.93 crashes 0 pass 29.0s
+34 Terraces        gates 26 len 1208 rocks 26 bands 14 shapes step/camber/dish/roller        kinds 8 run 4/5 flicks 4 hairpins 12 long 4 gaps 5 demand 0.23/0.38 steepest 0.29 margin 0.86 crashes 0 pass 28.2s
+35 Blind rollers   gates 26 len 1192 rocks 21 bands 13 shapes roller/camber/crown            kinds 7 run 4/4 flicks 6 hairpins 8 long 12 gaps 4 demand 0.22/0.40 steepest 0.29 margin 0.97 crashes 0 pass 27.2s
+36 Long traverse   gates 22 len 1192 rocks 19 bands 14 shapes camber/dish/roller/crown       kinds 8 run 4/5 flicks 2 hairpins 8 long 13 gaps 5 demand 0.19/0.26 steepest 0.28 margin 0.78 crashes 0 pass 26.9s
+37 Switchbacks     gates 26 len 1228 rocks 21 bands 16 shapes crown/dish/step/roller/camber  kinds 9 run 3/1 flicks 5 hairpins 11 long 15 gaps 4 demand 0.22/0.34 steepest 0.29 margin 0.83 crashes 0 pass 27.6s
+38 Cornice         gates 28 len 1238 rocks 26 bands 13 shapes roller/step/camber/dish/crown  kinds 9 run 4/2 flicks 9 hairpins 6 long 12 gaps 4 demand 0.20/0.30 steepest 0.29 margin 0.61 crashes 0 pass 26.9s
+39 Avalanche path  gates 28 len 1258 rocks 27 bands 12 shapes camber/dish/crown/roller/step  kinds 9 run 4/1 flicks 6 hairpins 8 long 11 gaps 4 demand 0.23/0.37 steepest 0.29 margin 0.51 crashes 0 pass 27.4s
+40 North face      gates 30 len 1296 rocks 26 bands 19 shapes camber/dish/crown/step/roller  kinds 9 run 4/3 flicks 6 hairpins 12 long 6 gaps 6 demand 0.27/0.47 steepest 0.28 margin 0.74 crashes 0 pass 28.3s

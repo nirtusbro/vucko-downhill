@@ -296,32 +296,6 @@ export class Environment {
     scene.add(this.mountains);
     this.finish(scene);
     this.startSign(scene);
-    const glints: number[] = [];
-    for (let i = 0; i < 700; i++) {
-      const x = (rand() - 0.5) * 38,
-        z = rand() * TERRAIN_PERIOD;
-      glints.push(
-        x,
-        snowHeight(z) + 0.014,
-        z,
-        x + 0.04,
-        snowHeight(z + 1.4) + 0.014,
-        z + 1.4,
-      );
-    }
-    const geom = new THREE.BufferGeometry();
-    geom.setAttribute("position", new THREE.Float32BufferAttribute(glints, 3));
-    const glintMaterial = new THREE.LineBasicMaterial({
-      color: "#aec8dd",
-      transparent: true,
-      opacity: 0.19,
-    });
-    const sparkle = [0, 1].map(() => {
-      const lines = new THREE.LineSegments(geom, glintMaterial);
-      scene.add(lines);
-      return lines;
-    });
-    this.leapfrogs.push(sparkle);
   }
   /** One terrain period of chairlift climbing the far left of the slope. */
   skiLift(scene: THREE.Scene) {

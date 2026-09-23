@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { snowHeight, type Run } from "./physics";
+import { surfaceHeight, type Run } from "./physics";
+import { SLIP_ACCEL, SLIP_GRIP } from "./levels";
 
 const TRACKS = 900,
   PARTICLES = 110;
@@ -83,21 +84,22 @@ export class SnowEffects {
         const z =
           s.z - Math.sin(s.heading) * offset - Math.cos(s.heading) * 0.8;
         const p = this.previous[side];
+        const y = surfaceHeight(s.course, x, z) + 0.025;
         if (!reset) {
           const base = this.cursor * 6;
-          this.positions.set(
-            [p.x, p.y, p.z, x, snowHeight(z) + 0.025, z],
-            base,
-          );
+          this.positions.set([p.x, p.y, p.z, x, y, z], base);
           this.cursor = (this.cursor + 1) % TRACKS;
         }
-        p.set(x, snowHeight(z) + 0.025, z);
+        p.set(x, y, z);
       }
       this.lastZ = s.z;
       this.trackGeometry.attributes.position.needsUpdate = true;
     }
     if (active) {
-      this.emit += dt * (s.crashTime > 0 ? 130 : 8 + Math.abs(s.heading) * 90);
+      // Skidding sideways throws snow too, more the faster the skid, and it flies the way the skis slide.
+      const skid = s.crashTime > 0 ? 0 : s.slip / (SLIP_ACCEL * SLIP_GRIP);
+      this.emit +=
+        dt * (s.crashTime > 0 ? 130 : 8 + Math.abs(s.heading) * 90 + Math.abs(skid) * 50);
       while (this.emit >= 1) {
         this.emit--;
         const i = this.particleCursor;
@@ -106,14 +108,14 @@ export class SnowEffects {
         this.particles.set(
           [
             s.x + (Math.random() - 0.5) * 0.8,
-            snowHeight(s.z) + 0.17,
+            surfaceHeight(s.course, s.x, s.z) + 0.17,
             s.z - 0.55,
           ],
           b,
         );
         this.velocities.set(
           [
-            -s.heading * 5 + (Math.random() - 0.5) * 3,
+            -s.heading * 5 + skid * 3 + (Math.random() - 0.5) * 3,
             1 + Math.random() * 2,
             -2 - Math.random() * 3,
           ],

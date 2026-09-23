@@ -128,6 +128,7 @@ export function createEndlessCourse(seed: number): EndlessCourse {
     stretches: [],
     lampSpots: [],
     hazards,
+    slopes: [],
     speed: ENDLESS_START_SPEED,
     turnAngle: 0.9,
     pickupRadius: 2,

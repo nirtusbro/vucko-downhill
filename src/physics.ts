@@ -1,10 +1,24 @@
 import { createPresents, stepPresents } from "./presents";
 import {
+  BANK_HALF_WIDTH,
+  BANK_RATE,
   BULLSEYE_POINTS,
   CRASH_PENALTY,
+  CROSS_SLOPE_MAX,
+  CROWN_HEIGHT,
+  DISH_HEIGHT,
+  DISH_REACH,
+  GRAVITY,
+  ROLLER_HEIGHT,
+  SLIP_ACCEL,
+  SLIP_DRAG,
+  SLIP_GRIP,
   SLOPE_RAMP,
   STEER_RESPONSE,
+  STEP_HALF,
+  STEP_HEIGHT,
   getCourse,
+  slopeWindow,
   type Course,
 } from "./levels";
 import { finishTimeBonus } from "./scoring";
@@ -18,6 +32,8 @@ export interface Run {
   z: number;
   speed: number;
   heading: number;
+  /** Sideways skid across the piste in m/s (+x positive): driven by banked snow, bled by edge grip. */
+  slip: number;
   time: number;
   nextGate: number;
   hits: number;
@@ -75,6 +91,81 @@ export const snowHeight = (z: number) =>
   -z * 0.1 +
   Math.sin((z * 2 * Math.PI) / 300) * 0.45 +
   Math.sin((z * 2 * Math.PI) / 100) * 0.15;
+/**
+ * How much higher (or, negative, lower) the snow is than the flat slope at a
+ * point, because of a bank: the piste tilts about its centre line, high on
+ * the side the bank pushes away from and sunk on the side it pushes toward,
+ * and comes back level just inside the fences.
+ */
+export function bankHeight(course: Pick<Course, "slopes">, x: number, z: number) {
+  let height = 0;
+  for (const slope of course.slopes) {
+    const w = slopeWindow(slope, z);
+    if (w === 0) continue;
+    if (slope.kind === "roller") {
+      // A knoll across the whole piste, cresting halfway along the band; a
+      // short band gets a lower knoll, so its faces are never steeper.
+      const length = slope.to - slope.from;
+      const t = Math.sin((Math.PI * (z - slope.from)) / length);
+      height += ROLLER_HEIGHT * Math.min(1, length / 26) * t * t;
+      continue;
+    }
+    // The sideways shapes come back level just inside the fences.
+    const e = Math.min(1, Math.max(0, (BANK_HALF_WIDTH - Math.abs(x)) / 4));
+    const edge = e * e * (3 - 2 * e);
+    const reach = Math.min(x * x, DISH_REACH * DISH_REACH) / (DISH_REACH * DISH_REACH);
+    let shape = 0;
+    if (slope.kind === "camber") shape = -slope.dir * BANK_RATE * x;
+    else if (slope.kind === "dish") shape = DISH_HEIGHT * reach;
+    else if (slope.kind === "crown") shape = CROWN_HEIGHT * (1 - reach);
+    else {
+      // A step: the high shelf on the side the snow falls from, a bank across the middle.
+      const s = Math.min(1, Math.max(0, (x * slope.dir + STEP_HALF) / (2 * STEP_HALF)));
+      shape = STEP_HEIGHT * (0.5 - s * s * (3 - 2 * s));
+    }
+    height += shape * edge * w;
+  }
+  return height;
+}
+/** The height of the snow under a point of a course, banks included. */
+export const surfaceHeight = (course: Pick<Course, "slopes">, x: number, z: number) =>
+  snowHeight(z) + bankHeight(course, x, z);
+/**
+ * How steeply the snow falls away sideways under a point, as a multiple of a
+ * full camber (positive toward +x), read off the surface itself so every
+ * shape of bank drives the skis the way it looks. Capped: past a point the
+ * edges bite no harder.
+ */
+export function crossSlope(course: Pick<Course, "slopes">, x: number, z: number) {
+  if (!course.slopes.length) return 0;
+  const fall = (bankHeight(course, x - 0.5, z) - bankHeight(course, x + 0.5, z)) / BANK_RATE;
+  return Math.max(-CROSS_SLOPE_MAX, Math.min(CROSS_SLOPE_MAX, fall));
+}
+/**
+ * How far sideways the skid will carry a skier between here and a point
+ * ahead, given the slip already under way, the banks on the way and a steady
+ * speed: the same slip dynamics as the run, walked a metre at a time. This is
+ * what a skier reads off the snow ahead to know how far upslope to aim.
+ */
+export function driftAhead(
+  course: Pick<Course, "slopes">,
+  x: number,
+  z: number,
+  slip: number,
+  speed: number,
+  untilZ: number,
+) {
+  let drift = 0;
+  const step = 1,
+    dt = step / Math.max(5, speed),
+    grip = 1 - Math.exp(-dt / SLIP_GRIP);
+  for (let at = z; at < untilZ; at += step) {
+    const terminal = crossSlope(course, x + drift, at + step / 2) * SLIP_ACCEL * SLIP_GRIP;
+    slip += (terminal - slip) * grip;
+    drift += slip * dt;
+  }
+  return drift;
+}
 /** Lives an endless run starts with; every miss or tumble costs one. */
 export const ENDLESS_LIVES = 3;
 /** Presents caught on an endless run that win an extra life. There is no cap. */
@@ -109,6 +200,7 @@ function runFor(course: Course, seed: number, owned: readonly boolean[] = []): R
     z: 0,
     speed: course.speed * 0.5,
     heading: 0,
+    slip: 0,
     time: 0,
     nextGate: 0,
     hits: 0,
@@ -163,6 +255,8 @@ export function stepRun(s: Run, input: number, dt: number) {
     s.speed += (4 - s.speed) * (1 - Math.exp(-5 * dt));
     s.x += (clamp(s.x, -13, 13) - s.x) * (1 - Math.exp(-6 * dt));
     s.heading *= Math.exp(-8 * dt);
+    // A tumbling skier digs in: the skid dies away quickly.
+    s.slip *= Math.exp(-dt / SLIP_GRIP);
     if (s.crashTime === 0) s.invincible = 2;
   } else {
     s.heading +=
@@ -176,15 +270,30 @@ export function stepRun(s: Run, input: number, dt: number) {
       Math.abs(s.heading) * 6 +
       Math.sin(s.z * 0.015) * 0.8;
     s.speed += (targetSpeed - s.speed) * (1 - Math.exp(-1.1 * dt));
+    // Banked snow: gravity across the tilt drives the skis into a sideslip
+    // that builds while the bank lasts, and edge grip bleeds it away, so the
+    // skid keeps carrying the skier for a moment after the bank ends. The
+    // heading stays put; it takes an upslope aim to hold a line.
+    const terminal = crossSlope(c, s.x, s.z) * SLIP_ACCEL * SLIP_GRIP;
+    s.slip += (terminal - s.slip) * (1 - Math.exp(-dt / SLIP_GRIP));
+    // Skidding sideways scrubs speed.
+    s.speed = Math.max(0, s.speed - SLIP_DRAG * Math.abs(s.slip) * dt);
     s.x +=
       (Math.sin(oldHeading) * oldSpeed + Math.sin(s.heading) * s.speed) *
       dt *
-      0.5;
+      0.5 +
+      s.slip * dt;
   }
   s.z +=
     (Math.cos(oldHeading) * oldSpeed + Math.cos(s.heading) * s.speed) *
     dt *
     0.5;
+  if (s.crashTime === 0) {
+    // Height is speed: dropping into the trough of a bank gives a little
+    // back, climbing onto its crest takes some away.
+    const rise = bankHeight(c, s.x, s.z) - bankHeight(c, oldX, oldZ);
+    s.speed = Math.max(0, s.speed - (GRAVITY * rise) / Math.max(5, s.speed));
+  }
   // Hazards are sorted by z; skip those already behind and stop past the skier.
   while (
     s.hazardCursor < c.hazards.length &&
