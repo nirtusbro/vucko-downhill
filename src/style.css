@@ -257,6 +257,19 @@ h1 span {
   padding: 17px 22px;
   min-height: 46px;
 }
+.install-button {
+  margin-top: 6px;
+  font-weight: 900;
+  color: #163d59;
+}
+.install-hint {
+  margin: 6px 0 0;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.5;
+  font-weight: 800;
+  color: #163d59;
+}
 .update-button {
   color: var(--red);
 }

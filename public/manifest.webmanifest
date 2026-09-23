@@ -3,6 +3,7 @@
   "short_name": "Vučko",
   "description": "Happy birthday, Ljubica! Ski with Vučko and collect lovely table lamps.",
   "lang": "en",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

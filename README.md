@@ -19,7 +19,7 @@ npm run build # TypeScript checks + production static build
 npm run preview
 ```
 
-Deploy the contents of `dist/` to any static HTTPS host. Relative asset paths support hosting at a subdirectory. There is no backend. `public/manifest.webmanifest`, PNG icons (regular and maskable), Apple home-screen metadata and standalone display are included. A Workbox service worker (`dist/sw.js`, built by `vite-plugin-pwa`) precaches the whole game so it runs offline once installed. New builds are not applied mid-run: when one is ready an “Update ready · Restart” button appears on the menu. Add to Home Screen is best checked on the final HTTPS URL: on Android, Chrome offers Install; on iPhone, use Share → Add to Home Screen in Safari.
+Deploy the contents of `dist/` to any static HTTPS host. Relative asset paths support hosting at a subdirectory. There is no backend. `public/manifest.webmanifest`, PNG icons (regular and maskable), Apple home-screen metadata and standalone display are included. A Workbox service worker (`dist/sw.js`, built by `vite-plugin-pwa`) precaches the whole game so it runs offline once installed. New builds are not applied mid-run: when one is ready an “Update ready · Restart” button appears on the menu. Installing is made discoverable on the menu: Chrome and Edge only show their own banner after a few visits, so the game captures their install prompt and offers it behind an “Install on this phone” button as soon as the browser allows; Safari has no such prompt, so on an iPhone or iPad the menu shows a hint to use Share → Add to Home Screen instead. Both disappear once the game runs from the home screen. Add to Home Screen is best checked on the final HTTPS URL.
 
 ## Play
 
