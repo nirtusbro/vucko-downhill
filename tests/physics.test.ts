@@ -59,6 +59,7 @@ describe("skiing", () => {
     expect(s.hits).toBe(4);
     expect(s.combo).toBe(4);
     expect(s.bullseyes).toBe(4);
+    expect(s.bullseyeGates).toEqual([0, 1, 2, 3]);
     expect(s.score).toBe(1200);
     stepRun(s, 0, 1 / 60);
     expect(s.score).toBe(1200);

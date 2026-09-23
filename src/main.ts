@@ -381,7 +381,8 @@ function event(name: string) {
     void livesEl.offsetWidth;
     livesEl.classList.add("hit");
   }
-  feedback.className = name === "gate" ? "show" : "show miss";
+  feedback.className =
+    name === "gate" ? (run.gateBonus ? "show bullseye" : "show") : "show miss";
   feedbackUntil = elapsed + 1.25;
   combo.textContent =
     name === "gate" && run.combo > 1
@@ -568,7 +569,7 @@ try {
       finishDelay -= dt;
       if (finishDelay <= 0) finish();
     }
-    if (elapsed > feedbackUntil) feedback.className = "";
+    if (elapsed > feedbackUntil) feedback.classList.remove("show");
     if (mode !== "collection") scene.update(run, dt, mode, elapsed);
     requestAnimationFrame(frame);
   };

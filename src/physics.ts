@@ -40,6 +40,8 @@ export interface Run {
   misses: number;
   crashes: number;
   bullseyes: number;
+  /** Indices of the gates whose bullseye was taken, so the scene can show them collected. */
+  bullseyeGates: number[];
   combo: number;
   score: number;
   gateBonus: number;
@@ -212,6 +214,7 @@ function runFor(course: Course, seed: number, owned: readonly boolean[] = []): R
     lifeEvent: false,
     hazardCursor: 0,
     bullseyes: 0,
+    bullseyeGates: [],
     combo: 0,
     score: 0,
     gateBonus: 0,
@@ -369,6 +372,7 @@ export function stepRun(s: Run, input: number, dt: number) {
       s.score += 100 * s.combo;
       if (offset <= BULLSEYE_RADIUS) {
         s.bullseyes++;
+        s.bullseyeGates.push(s.nextGate);
         s.gateBonus = BULLSEYE_POINTS;
         s.score += BULLSEYE_POINTS;
       }

@@ -681,6 +681,24 @@ h1 span {
   opacity: 1;
   transform: none;
 }
+#feedback.bullseye {
+  color: #ff6a48;
+  text-shadow:
+    0 0 1px #fff,
+    0 2px 12px #fff,
+    0 0 26px rgba(255, 106, 72, 0.45);
+}
+#feedback.bullseye.show {
+  animation: bullseye-pop 0.5s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+@keyframes bullseye-pop {
+  from {
+    transform: scale(0.75);
+  }
+  to {
+    transform: none;
+  }
+}
 #feedback.miss {
   font-size: 17px;
   color: #637b8a;

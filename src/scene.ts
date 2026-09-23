@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import {
+  BULLSEYE_RADIUS,
   TERRAIN_PERIOD,
   bankHeight,
   crossSlope,
@@ -54,6 +55,8 @@ export class SkiScene {
   private builtGates = 0;
   private groundTiles: THREE.Group[] = [];
   private flagTextures: THREE.CanvasTexture[];
+  /** Textures for the bullseye marker: a glowing coral disc and a white snowflake stamp. */
+  private glowTextures: { pool: THREE.CanvasTexture; flake: THREE.CanvasTexture };
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -118,6 +121,43 @@ export class SkiScene {
       t.colorSpace = THREE.SRGBColorSpace;
       return t;
     });
+    const glow = (size: number, paint: (ctx: CanvasRenderingContext2D) => void) => {
+      const c = document.createElement("canvas");
+      c.width = c.height = size;
+      paint(c.getContext("2d")!);
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    };
+    this.glowTextures = {
+      // A crisp coral disc, just soft enough at the rim not to shimmer.
+      pool: glow(128, (ctx) => {
+        const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+        g.addColorStop(0, "rgba(255, 106, 72, 1)");
+        g.addColorStop(0.9, "rgba(255, 106, 72, 1)");
+        g.addColorStop(1, "rgba(255, 106, 72, 0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, 128, 128);
+      }),
+      // The same snowflake the flags wear, white on nothing, to stamp the disc.
+      flake: glow(128, (ctx) => {
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 5;
+        ctx.lineCap = "round";
+        ctx.translate(64, 64);
+        for (let i = 0; i < 6; i++) {
+          ctx.rotate(Math.PI / 3);
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(0, -38);
+          ctx.moveTo(0, -26);
+          ctx.lineTo(-11, -36);
+          ctx.moveTo(0, -26);
+          ctx.lineTo(11, -36);
+          ctx.stroke();
+        }
+      }),
+    };
     this.scene.add(this.skier);
     this.shadow = mesh(
       new THREE.CircleGeometry(1, 24),
@@ -160,10 +200,10 @@ export class SkiScene {
       course.gates[this.builtGates].z < z + 420
     ) {
       const i = this.builtGates++;
-      this.buildGate(i, course.gates[i]);
+      this.buildGate(i, course.gates[i], course);
     }
   }
-  private buildGate(i: number, gate: Gate) {
+  private buildGate(i: number, gate: Gate, course: Course) {
     const flagTextures = this.flagTextures;
     {
       const group = new THREE.Group();
@@ -203,6 +243,53 @@ export class SkiScene {
       );
       line.rotation.x = -Math.PI / 2;
       group.add(line);
+      // The bullseye zone is a hot spot on the snow: a glowing coral disc
+      // stamped with a snowflake and two thin white arcs circling it, the way
+      // games mark a sweet spot. Skiing through it collects it.
+      const bullseye = new THREE.Group();
+      bullseye.position.y = bankHeight(course, gate.x, gate.z);
+      bullseye.userData.bullseye = true;
+      const flat = (size: number, material: THREE.Material, y: number) => {
+        const m = mesh(new THREE.PlaneGeometry(size, size), material, 0, y);
+        m.rotation.x = -Math.PI / 2;
+        return m;
+      };
+      const overlay = (map: THREE.Texture, opacity: number) =>
+        new THREE.MeshBasicMaterial({
+          map,
+          transparent: true,
+          opacity,
+          depthWrite: false,
+          toneMapped: false,
+        });
+      const pool = flat(BULLSEYE_RADIUS * 2.1, overlay(this.glowTextures.pool, 0.9), 0.04);
+      pool.userData.pool = true;
+      bullseye.add(pool);
+      bullseye.add(flat(BULLSEYE_RADIUS * 1.3, overlay(this.glowTextures.flake, 0.95), 0.05));
+      const arcs = new THREE.Group();
+      arcs.position.y = 0.045;
+      arcs.userData.arcs = true;
+      const arcMaterial = new THREE.MeshBasicMaterial({
+        color: "#ffffff",
+        transparent: true,
+        opacity: 0.9,
+        depthWrite: false,
+        toneMapped: false,
+      });
+      for (const start of [0.35, Math.PI + 0.35]) {
+        const arc = mesh(
+          new THREE.RingGeometry(BULLSEYE_RADIUS * 1.12, BULLSEYE_RADIUS * 1.2, 32, 1, start, 2.2),
+          arcMaterial,
+        );
+        arc.rotation.x = -Math.PI / 2;
+        arcs.add(arc);
+      }
+      bullseye.add(arcs);
+      bullseye.traverse((part) => {
+        if (part instanceof THREE.Mesh)
+          part.userData.baseOpacity = (part.material as THREE.MeshBasicMaterial).opacity;
+      });
+      group.add(bullseye);
       group.userData.index = i;
       this.scene.add(group);
       this.gateGroups.push(group);
@@ -297,6 +384,28 @@ export class SkiScene {
       gate.visible = gate.position.z > s.z - 12 && gate.position.z < s.z + 290;
       if (gate.visible)
         for (const child of gate.children) {
+          if (child.userData.bullseye) {
+            // The hot spot lives: the disc breathes and the arcs circle it. Once
+            // taken, it bursts outward and fades, like a pickup being collected.
+            const collected = s.bullseyeGates.includes(gate.userData.index);
+            if (collected && child.userData.collectedAt === undefined)
+              child.userData.collectedAt = elapsed;
+            if (!collected) child.userData.collectedAt = undefined;
+            const t = collected ? Math.min(1, (elapsed - child.userData.collectedAt) / 0.45) : 0;
+            child.visible = t < 1;
+            if (!child.visible) continue;
+            const pulse = 0.5 + 0.5 * Math.sin(elapsed * 2.4 + gate.position.z);
+            child.scale.setScalar(1 + 0.8 * t);
+            child.traverse((part) => {
+              if (part instanceof THREE.Mesh)
+                (part.material as THREE.MeshBasicMaterial).opacity =
+                  part.userData.baseOpacity * (1 - t) * (1 - t);
+            });
+            for (const part of child.children) {
+              if (part.userData.pool) part.scale.setScalar(0.96 + 0.06 * pulse);
+              else if (part.userData.arcs) part.rotation.y = elapsed * 0.9;
+            }
+          }
           if (child.userData.flag) {
             const p = (child as THREE.Mesh).geometry.attributes.position;
             for (let j = 0; j < p.count; j++)
