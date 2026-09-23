@@ -12,8 +12,6 @@ import {
   type Hazard,
 } from "./levels";
 
-/** Misses and tumbles an endless run survives before it ends. */
-export const ENDLESS_STRIKES = 3;
 /** Distance over which the endless course reaches its hardest layout. */
 export const ENDLESS_RAMP = 3000;
 /** Distance over which cruising speed keeps climbing after that. */

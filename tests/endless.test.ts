@@ -5,7 +5,7 @@ import {
   ENDLESS_TOP_SPEED,
   createEndlessCourse,
 } from "../src/endless";
-import { clamp, createEndlessRun, createRun, stepRun, ENDLESS_STRIKES, GIFTS_PER_LIFE, TERRAIN_PERIOD, snowHeight } from "../src/physics";
+import { clamp, createEndlessRun, createRun, stepRun, ENDLESS_LIVES, GIFTS_PER_LIFE, TERRAIN_PERIOD, snowHeight } from "../src/physics";
 
 /** Drives an endless run with the relaxed controller for a distance. */
 function driveEndless(run: ReturnType<typeof createEndlessRun>, untilZ: number) {
@@ -100,47 +100,60 @@ describe("endless mode", () => {
     const run = createEndlessRun(5);
     for (let i = 0; i < 120 * 300 && !run.finished; i++) stepRun(run, 0, 1 / 120);
     expect(run.finished).toBe(true);
-    expect(run.strikes).toBe(ENDLESS_STRIKES);
-    expect(run.misses + run.crashes).toBeGreaterThanOrEqual(ENDLESS_STRIKES);
+    expect(run.lives).toBe(0);
+    expect(run.strikes).toBe(ENDLESS_LIVES);
+    expect(run.misses + run.crashes).toBe(ENDLESS_LIVES);
     expect(run.passed).toBe(false);
     expect(run.timeBonus).toBe(0);
     const distance = run.z;
     stepRun(run, 0, 1 / 120);
     expect(run.z).toBe(distance);
   });
-  it("wins a life back for every ten presents caught, never beyond three", () => {
+  it("wins a life for every ten presents caught, with no cap", () => {
     const run = createEndlessRun(9);
-    run.strikes = 2;
+    run.lives = 1;
     const catchGift = () => {
       Object.assign(run.presents.items[0], { phase: "landed", x: run.x, z: run.z + 0.3, age: 0 });
       stepRun(run, 0, 1 / 120);
       expect(run.presents.event).toBe(true);
     };
     for (let i = 0; i < GIFTS_PER_LIFE - 1; i++) catchGift();
-    expect(run.strikes).toBe(2);
+    expect(run.lives).toBe(1);
     expect(run.giftsTowardLife).toBe(GIFTS_PER_LIFE - 1);
     expect(run.lifeEvent).toBe(false);
     catchGift();
-    expect(run.strikes).toBe(1);
+    expect(run.lives).toBe(2);
     expect(run.lifeEvent).toBe(true);
     expect(run.giftsTowardLife).toBe(0);
     stepRun(run, 0, 1 / 120);
     expect(run.lifeEvent).toBe(false);
     for (let i = 0; i < GIFTS_PER_LIFE; i++) catchGift();
-    expect(run.strikes).toBe(0);
+    expect(run.lives).toBe(3);
+    // Ten more gifts on a full three lives earn a fourth, and so on.
     for (let i = 0; i < GIFTS_PER_LIFE; i++) catchGift();
-    expect(run.strikes).toBe(0);
-    expect(run.lifeEvent).toBe(false);
-    expect(run.presents.collected).toBe(3 * GIFTS_PER_LIFE);
+    expect(run.lives).toBe(4);
+    expect(run.lifeEvent).toBe(true);
+    for (let i = 0; i < GIFTS_PER_LIFE; i++) catchGift();
+    expect(run.lives).toBe(5);
+    expect(run.presents.collected).toBe(4 * GIFTS_PER_LIFE);
+    // A run with spare lives survives more than three strikes.
+    run.lives = 4;
+    run.strikes = 0;
+    while (run.strikes < 3 && !run.finished) stepRun(run, 0, 1 / 120);
+    expect(run.strikes).toBe(3);
+    expect(run.lives).toBe(1);
+    expect(run.finished).toBe(false);
     // Presents count for points on the levels too, but lives are endless only.
     const level = createRun(0);
     Object.assign(level.presents.items[0], { phase: "landed", x: 0, z: 0.3, age: 0 });
     level.strikes = 1;
+    level.lives = 1;
     for (let i = 0; i < GIFTS_PER_LIFE; i++) {
       Object.assign(level.presents.items[0], { phase: "landed", x: level.x, z: level.z + 0.3, age: 0 });
       stepRun(level, 0, 1 / 120);
     }
     expect(level.strikes).toBe(1);
+    expect(level.lives).toBe(1);
     expect(level.giftsTowardLife).toBe(0);
   });
   it("keeps the snow periodic so scenery can be recycled", () => {

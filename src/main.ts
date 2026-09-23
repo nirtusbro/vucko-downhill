@@ -5,7 +5,7 @@ import {
   createRun,
   stepRun,
   lampsKept,
-  ENDLESS_STRIKES,
+  ENDLESS_LIVES,
   GIFTS_PER_LIFE,
   BULLSEYE_POINTS,
   COMBO_CAP,
@@ -29,6 +29,9 @@ import {
   saveGhost,
   type Trace,
 } from "./ghost";
+
+/** Past this many lives the HUD draws one heart with a count instead of a row. */
+const MAX_HEART_ICONS = 6;
 
 const el = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
@@ -173,17 +176,18 @@ function updateHud() {
   livesEl.hidden = !endless;
   lifeProgressEl.hidden = !endless;
   if (endless) {
-    // Three lives, drawn big: they drain on a miss or a tumble and come back
-    // for every ten presents caught.
-    const left = Math.max(0, ENDLESS_STRIKES - run.strikes);
-    livesEl.innerHTML = Array.from(
-      { length: ENDLESS_STRIKES },
-      (_, i) => `<span class="${i < left ? "life" : "life lost"}">${i < left ? "♥" : "♡"}</span>`,
-    ).join("");
-    lifeProgressEl.textContent =
-      left < ENDLESS_STRIKES
-        ? `${run.giftsTowardLife} / ${GIFTS_PER_LIFE} gifts to a life`
-        : `${run.giftsTowardLife} / ${GIFTS_PER_LIFE} gifts`;
+    // Lives, drawn big: they drain on a miss or a tumble and every ten
+    // presents add one, with no cap. Up to the starting three, lost hearts
+    // show hollow; past a handful they collapse to one heart and a count.
+    const left = Math.max(0, run.lives);
+    livesEl.innerHTML =
+      left > MAX_HEART_ICONS
+        ? `<span class="life">♥</span><span class="life-count">×${left}</span>`
+        : Array.from(
+            { length: Math.max(left, ENDLESS_LIVES) },
+            (_, i) => `<span class="${i < left ? "life" : "life lost"}">${i < left ? "♥" : "♡"}</span>`,
+          ).join("");
+    lifeProgressEl.textContent = `${run.giftsTowardLife} / ${GIFTS_PER_LIFE} gifts to a life`;
     goalEl.textContent = `${Math.floor(run.z).toLocaleString()} m`;
     goalEl.classList.toggle("reached", false);
     goalEl.classList.toggle("missed", false);
@@ -367,7 +371,7 @@ function event(name: string) {
     return;
   }
   if (name === "life") {
-    feedback.textContent = "A life back! ♥";
+    feedback.textContent = `Extra life! ♥ ${run.lives} now`;
     feedback.className = "show lamp";
     combo.textContent = `${GIFTS_PER_LIFE} gifts caught`;
     feedbackUntil = elapsed + 1.4;
@@ -380,10 +384,10 @@ function event(name: string) {
       ? `+${100 * run.combo + run.gateBonus}${run.gateBonus ? " · BULLSEYE" : ""}`
       : name === "miss"
         ? run.course.endless
-          ? `Gate missed · ${Math.max(0, ENDLESS_STRIKES - run.strikes)} left`
+          ? `Gate missed · ${Math.max(0, run.lives)} left`
           : "Gate missed · the lamp needs every gate"
         : run.course.endless
-          ? `A little snow hug! −${CRASH_PENALTY} · ${Math.max(0, ENDLESS_STRIKES - run.strikes)} left`
+          ? `A little snow hug! −${CRASH_PENALTY} · ${Math.max(0, run.lives)} left`
           : `A little snow hug! −${CRASH_PENALTY}`;
   if (run.course.endless && name !== "gate") {
     // Flash the lives so a lost heart is impossible to miss.
@@ -508,7 +512,7 @@ function finishEndless() {
   el("result-lamp").hidden = true;
   el("result-lamps").textContent = "No lamps on the endless run";
   el("result-presents").textContent =
-    `${run.presents.collected} birthday presents · +${run.presents.collected * PRESENT_POINTS} points · ${Math.floor(run.presents.collected / GIFTS_PER_LIFE)} ${Math.floor(run.presents.collected / GIFTS_PER_LIFE) === 1 ? "life" : "lives"} won back`;
+    `${run.presents.collected} birthday presents · +${run.presents.collected * PRESENT_POINTS} points · ${Math.floor(run.presents.collected / GIFTS_PER_LIFE)} ${Math.floor(run.presents.collected / GIFTS_PER_LIFE) === 1 ? "life" : "lives"} won`;
   el("result-bullseyes").textContent =
     `${run.bullseyes} bullseyes · +${(run.bullseyes * BULLSEYE_POINTS).toLocaleString()} points${run.crashes ? ` · −${(run.crashes * CRASH_PENALTY).toLocaleString()} for tumbles` : ""}`;
   el("new-best").hidden = !newBest;

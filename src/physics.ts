@@ -28,11 +28,13 @@ export interface Run {
   score: number;
   gateBonus: number;
   timeBonus: number;
-  /** Misses plus tumbles; an endless run ends at ENDLESS_STRIKES. */
+  /** Misses plus tumbles over the run. */
   strikes: number;
-  /** Presents caught since the last life won back, on an endless run. */
+  /** Lives left on an endless run; it ends when they reach zero. */
+  lives: number;
+  /** Presents caught since the last life won, on an endless run. */
   giftsTowardLife: number;
-  /** Set for the step in which a life was won back. */
+  /** Set for the step in which a life was won. */
   lifeEvent: boolean;
   /** Index of the first hazard that could still be ahead, so checks stay cheap. */
   hazardCursor: number;
@@ -73,9 +75,9 @@ export const snowHeight = (z: number) =>
   -z * 0.1 +
   Math.sin((z * 2 * Math.PI) / 300) * 0.45 +
   Math.sin((z * 2 * Math.PI) / 100) * 0.15;
-/** Misses and tumbles that end an endless run. */
-export const ENDLESS_STRIKES = 3;
-/** Presents caught on an endless run that win a life back. */
+/** Lives an endless run starts with; every miss or tumble costs one. */
+export const ENDLESS_LIVES = 3;
+/** Presents caught on an endless run that win an extra life. There is no cap. */
 export const GIFTS_PER_LIFE = 10;
 /** Slope lamps a finished run keeps: those picked up this run, only if the level was passed. */
 export const lampsKept = (s: Run) =>
@@ -113,6 +115,7 @@ function runFor(course: Course, seed: number, owned: readonly boolean[] = []): R
     misses: 0,
     crashes: 0,
     strikes: 0,
+    lives: ENDLESS_LIVES,
     giftsTowardLife: 0,
     lifeEvent: false,
     hazardCursor: 0,
@@ -203,6 +206,7 @@ export function stepRun(s: Run, input: number, dt: number) {
     s.combo = 0;
     s.crashes++;
     s.strikes++;
+    s.lives--;
     s.score = Math.max(0, s.score - CRASH_PENALTY);
     s.event = "crash";
   }
@@ -238,13 +242,12 @@ export function stepRun(s: Run, input: number, dt: number) {
     }
   }
   stepPresents(s, oldX, oldZ, dt, c.gates, c.finishZ, c.hazards);
-  // On the endless run every tenth present caught wins a lost life back.
+  // On the endless run every tenth present caught wins a life, with no cap:
+  // ten gifts on three lives make a fourth.
   if (c.endless && s.presents.event && ++s.giftsTowardLife >= GIFTS_PER_LIFE) {
     s.giftsTowardLife = 0;
-    if (s.strikes > 0) {
-      s.strikes--;
-      s.lifeEvent = true;
-    }
+    s.lives++;
+    s.lifeEvent = true;
   }
   while (s.nextGate < c.gates.length && s.z >= c.gates[s.nextGate].z) {
     const gate = c.gates[s.nextGate];
@@ -265,12 +268,13 @@ export function stepRun(s: Run, input: number, dt: number) {
       s.combo = 0;
       s.misses++;
       s.strikes++;
+      s.lives--;
       if (s.event !== "crash") s.event = "miss";
     }
     s.nextGate++;
   }
-  if (c.endless && s.strikes >= ENDLESS_STRIKES) {
-    // Three strikes: the endless run is over where it stands.
+  if (c.endless && s.lives <= 0) {
+    // Out of lives: the endless run is over where it stands.
     s.finished = true;
     s.passed = false;
     s.event = "finish";

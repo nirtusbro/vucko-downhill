@@ -25,6 +25,8 @@ Sparser pickups (22 September): the user reported lamps and presents appearing t
 
 Ghost from passed runs only (22 September): the user saw a ghost missing gates after passing a level cleanly. Two causes: a failed run with a higher score counted as the level best and so as the ghost, and ghosts recorded on earlier layouts of a level were still loaded. Count only passed runs as a level best, save the ghost with a fingerprint of the level layout, and drop any ghost whose fingerprint no longer matches.
 
+Uncapped lives (23 September): the user asked that endless lives not stop at three: ten gifts on three lives earn a fourth, and so on. Replace the strike countdown with a lives counter that starts at three, drops on every miss or tumble, rises by one for every ten presents with no ceiling, and ends the run at zero; draw extra hearts in the HUD and collapse to a heart with a count past six.
+
 Install button (23 September): the user asked how to make sure the install offer appears. Capture the browser's install prompt on the menu and put it behind an “Install on this phone” button that shows as soon as the browser is willing, show a Share → Add to Home Screen hint on iOS where no prompt exists, hide both when already installed, and give the manifest a stable id.
 
 Lives and gifts (22 September): the user asked for much bigger, more noticeable lives on the endless run, the endless high score on the home screen, and a life back for every ten presents. Add a large heart row under the HUD top bar that flashes on a loss, a presents-to-next-life counter, an endless record line under the Endless button, and a life-back rule in the simulation that only applies to the endless course and never exceeds three lives.
